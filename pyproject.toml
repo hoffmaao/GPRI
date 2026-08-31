@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gpri"
+version = "0.2.0"
+description = "LOS displacement time series from GPRI / GAMMA terrestrial radar interferograms"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+authors = [{ name = "Andrew Hoffman", email = "andrewohoffman@gmail.com" }]
+keywords = ["insar", "gpri", "gamma", "radar", "interferometry", "glaciology"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Intended Audience :: Science/Research",
+]
+dependencies = [
+    "numpy>=1.20",
+    "scipy>=1.7",
+]
+
+[project.optional-dependencies]
+# Geocoding needs pyproj; writing GeoTIFFs needs rasterio; figures need
+# matplotlib.  None of them are required to read GAMMA products and invert a
+# network, so they stay optional and are imported at point of use.
+geo = ["pyproj>=3.0", "rasterio>=1.2"]
+plot = ["matplotlib>=3.3"]
+all = ["pyproj>=3.0", "rasterio>=1.2", "matplotlib>=3.3"]
+dev = ["pytest>=7.0", "pyproj>=3.0", "rasterio>=1.2", "matplotlib>=3.3"]
+
+[project.urls]
+Homepage = "https://github.com/hoffmaao/GPRI"
+
+[project.scripts]
+gpri = "gpri.cli:main"
+
+[tool.setuptools]
+packages = ["gpri"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+    "ignore:A NumPy version:UserWarning",
+    "ignore:np.find_common_type is deprecated:DeprecationWarning",
+]
