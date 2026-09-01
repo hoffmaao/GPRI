@@ -100,6 +100,9 @@ def main():
                     help="rolling-mean window in epochs, display only")
     ap.add_argument("--s-smooth", type=float, nargs=2, default=(1.0, 2.0),
                     help="spatial gaussian in radar pixels, display only")
+    ap.add_argument("--rgi", action="store_true",
+                    help="tie the reference to true rock: coherent pixels "
+                         "outside the RGI outlines (+100 m); needs GPRI_RGI")
     ap.add_argument("--rate-hours", type=float, default=0.0,
                     help="render LOS motion over the trailing N hours instead "
                          "of cumulative displacement -- bounded noise, and the "
@@ -117,6 +120,18 @@ def main():
     del cc
     stable = mean_cc >= args.stable_coherence
     show = mean_cc >= args.show_coherence
+    if args.rgi:
+        import os as _os
+        from gpri.glaciers import load_outlines, stable_ground_mask
+        _g = decimated_geom(stack, args.decimate, args.heading)
+        la, lo = _g.geodetic(rows=[0, _g.shape[0] - 1],
+                             cols=[0, _g.shape[1] - 1])
+        bbox = (lo.min() - .02, la.min() - .02, lo.max() + .02, la.max() + .02)
+        gdf = load_outlines(_os.environ.get("GPRI_RGI", "data/rgi/rgi_61.zip"),
+                            bbox=bbox)
+        stable, contested = stable_ground_mask(mean_cc, _g, gdf,
+                                               threshold=args.stable_coherence)
+        print(f"RGI reference: dropped {contested.sum():,} coherent-but-glacier px")
     print(f"{day}: {n} pairs, bedrock {stable.sum():,} px, "
           f"showing {100 * show.mean():.1f}% of the swath")
 
