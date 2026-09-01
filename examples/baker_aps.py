@@ -58,15 +58,66 @@ SCENES = {d: _os.environ.get(f"GPRI_SCENE_{d}", "")
           for d in ("20170803", "20170713", "20160826")}
 
 
-def load(scene: Path, dec: int, n_max: int = 0):
+def open_stack(scene: Path, antenna: str = "upper", lags=(1,), looks=(1, 1)):
+    """The pair stack for one antenna of a scene.
+
+    GAMMA only ever formed the upper-antenna daisy chain (``diff0``), so that
+    exact product is used when it is what was asked for.  Anything else — the
+    lower antenna, or a network with i->i+2 / i->i+3 pairs, or multilooked
+    products — is formed from the SLCs with :class:`gpri.stack.SlcPairStack`,
+    which reproduces GAMMA's ``.diff`` to 1e-7 rad and its ``.cc`` to 0.014.
+    """
+    from gpri.stack import SlcPairStack
+    letter = antenna[0].lower()
+    if letter not in "ul":
+        raise ValueError(f"antenna must be upper or lower, not {antenna!r}")
     tab = scene / "SLCu_tab"
-    stack = DiffStack.from_directory(scene / "diff0",
-                                     slc_tab=tab if tab.exists() else None)
+    if letter == "u" and tuple(lags) == (1,) and tuple(looks) == (1, 1) \
+            and (scene / "diff0").is_dir():
+        return DiffStack.from_directory(scene / "diff0",
+                                        slc_tab=tab if tab.exists() else None)
+    if letter == "u" and tab.exists():
+        return SlcPairStack.from_tab(tab, lags=lags, looks=looks)
+    return SlcPairStack.from_directory(scene / "slc", antenna=letter,
+                                       lags=lags, looks=looks)
+
+
+def _cache_path(scene: Path, antenna: str, lags, looks, dec: int):
+    root = Path(_os.environ.get("GPRI_WORK_ROOT", "work"))
+    tag = (f"pairs_{antenna[0].lower()}_lag{''.join(map(str, lags))}"
+           f"_lk{looks[0]}x{looks[1]}_dec{dec}.npz")
+    return root / scene.name / tag
+
+
+def load(scene: Path, dec: int, n_max: int = 0, antenna: str = "upper",
+         lags=(1,), looks=(1, 1), cache: bool = True):
+    """Phase and coherence for every pair, range-decimated by ``dec``.
+
+    Reading a full day is 50 GB of interferograms off a network mount (or 50
+    GB of SLCs plus a coherence estimate per pair); the decimated arrays are
+    cached under ``GPRI_WORK_ROOT/<day>/`` so that the second script to ask
+    for the same product gets it in seconds.
+    """
+    stack = open_stack(scene, antenna, lags, looks)
     n = stack.n_pairs if n_max <= 0 else min(n_max, stack.n_pairs)
     net = stack.network
     net.pairs = net.pairs[:n]
 
     nc = stack.shape[1] // dec
+    par = stack.par
+    r = par.slant_range()[::dec][:nc]
+    step = par.float("GPRI_az_angle_step", 0.0)
+    az = (par.float("GPRI_az_start_angle", 0.0)
+          + step * np.arange(par.azimuth_lines)) if step else None
+
+    cpath = _cache_path(scene, antenna, lags, looks, dec)
+    if cache and cpath.exists():
+        with np.load(cpath) as z:
+            if int(z["n_pairs"]) >= n and tuple(z["shape"]) == (stack.shape[0], nc):
+                phase, cc = z["phase"][:n], z["cc"][:n]
+                print(f"loaded {n} pairs from {cpath}")
+                return stack, net, phase, cc, r, az, n
+
     phase = np.empty((n, stack.shape[0], nc), np.float32)
     cc = np.empty(phase.shape, np.float32)
     t0 = time.time()
@@ -78,12 +129,15 @@ def load(scene: Path, dec: int, n_max: int = 0):
         if p % 100 == 0:
             print(f"  read {p + 1}/{n}  ({time.time() - t0:.0f} s)")
     print(f"read {n} pairs in {time.time() - t0:.0f} s")
+    if hasattr(stack, "close"):
+        stack.close()
 
-    par = stack.par
-    r = par.slant_range()[::dec][:nc]
-    step = par.float("GPRI_az_angle_step", 0.0)
-    az = (par.float("GPRI_az_start_angle", 0.0)
-          + step * np.arange(par.azimuth_lines)) if step else None
+    if cache and n == stack.n_pairs:
+        cpath.parent.mkdir(parents=True, exist_ok=True)
+        np.savez(cpath, phase=phase, cc=cc, n_pairs=n,
+                 shape=np.array(phase.shape[1:]), pairs=net.pairs,
+                 times=net.times)
+        print(f"cached to {cpath}")
     return stack, net, phase, cc, r, az, n
 
 
@@ -132,15 +186,19 @@ def main():
                          "only, instead of everything above --screen-coherence")
     ap.add_argument("--sigma", type=float, nargs=2, default=(5.0, 40.0),
                     metavar=("AZ", "RG"), help="turbulence kernel, pixels")
+    ap.add_argument("--antenna", default="upper", choices=("upper", "lower"),
+                    help="which receive antenna; 'lower' is formed from the "
+                         "SLCs (GAMMA only processed the upper)")
     ap.add_argument("--outdir", type=Path, default=Path("docs/figures"))
     args = ap.parse_args()
     scene = Path(SCENES.get(args.scene) or args.scene)
     if not scene.is_dir():
         raise SystemExit(f"scene directory {scene} not found -- set "
                          f"GPRI_SCENE_{args.scene} in site.env or pass a path")
-    day = scene.name
+    day = scene.name + ("" if args.antenna == "upper" else f"_{args.antenna}")
 
-    stack, net, phase, cc, r, az, n = load(scene, args.decimate, args.pairs)
+    stack, net, phase, cc, r, az, n = load(scene, args.decimate, args.pairs,
+                                           antenna=args.antenna)
     lam = stack.wavelength
     span = float((net.times[min(n, net.n_epochs - 1)] - net.times[0]) * 24)
     print(f"{day}: {n} pairs over {span:.2f} h, grid {phase.shape[1:]}, "

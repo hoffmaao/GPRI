@@ -148,3 +148,135 @@ def test_works_without_an_slc_tab(scene):
 def test_repr_is_informative(scene):
     st = DiffStack.from_directory(scene / "diff0", slc_tab=scene / "SLCu_tab")
     assert "3 pairs" in repr(st) and "4 epochs" in repr(st)
+
+
+# ------------------------------------------------------------- SLC-formed pairs
+from gpri.stack import SlcPairStack, coherence_window                   # noqa: E402
+
+BIG = (12, 40)
+BIG_PAR = PAR.replace("range_samples:    9", "range_samples:    40") \
+             .replace("azimuth_lines:    4", "azimuth_lines:    12")
+IDS_L = [s[:-1] + "l" for s in IDS]
+
+
+@pytest.fixture
+def slc_scene(tmp_path):
+    """Both antennas' SLCs on disk, a tab for the upper only, as GAMMA leaves it."""
+    (tmp_path / "slc").mkdir()
+    rng = np.random.default_rng(1)
+    base = rng.normal(size=BIG) + 1j * rng.normal(size=BIG)   # common speckle
+    rows = []
+    for k, (u, lo) in enumerate(zip(IDS, IDS_L)):
+        # coherent scene that walks in phase by 0.3 rad per epoch, plus noise
+        for sid, noise in ((u, 0.2), (lo, 0.5)):
+            s = base * np.exp(1j * 0.3 * k) + noise * (rng.normal(size=BIG)
+                                                      + 1j * rng.normal(size=BIG))
+            write_image(tmp_path / "slc" / f"{sid}.slc", s.astype(np.complex64))
+            (tmp_path / "slc" / f"{sid}.slc.par").write_text(BIG_PAR)
+        rows.append(f"slc/{u}.slc  slc/{u}.slc.par")
+    (tmp_path / "SLCu_tab").write_text("\n".join(rows) + "\n")
+    return tmp_path
+
+
+def test_coherence_window_normalised():
+    wa, wr = coherence_window((5, 5), "triangular")
+    assert wa.sum() == pytest.approx(1.0) and wr.sum() == pytest.approx(1.0)
+    assert wa[2] == wa.max() and wa[0] == wa[-1]
+    b, _ = coherence_window((3, 3), "boxcar")
+    assert np.allclose(b, 1 / 3)
+    with pytest.raises(ValueError):
+        coherence_window((3, 3), "hann")
+
+
+def test_slc_pairs_match_gamma_product(slc_scene):
+    """Pair (i, j) is exactly s_i * conj(s_j) at one look - GAMMA's SLC_intf."""
+    from gpri.gamma import read_image
+    st = SlcPairStack.from_tab(slc_scene / "SLCu_tab")
+    assert st.n_pairs == 3 and st.n_epochs == 4 and st.shape == BIG
+    assert list(map(tuple, st.network.pairs)) == [(0, 1), (1, 2), (2, 3)]
+    a = read_image(slc_scene / "slc" / f"{IDS[1]}.slc")
+    b = read_image(slc_scene / "slc" / f"{IDS[2]}.slc")
+    np.testing.assert_allclose(st.read_pair(1), a * np.conj(b), rtol=1e-6)
+    # the tile interface and the whole-frame one agree
+    np.testing.assert_array_equal(st.read_pair(1, slice(2, 5), slice(0, 7)),
+                                  (a * np.conj(b))[2:5, 0:7])
+    # scene phase walks +0.3 rad/epoch and pair (i,j) carries theta_i - theta_j
+    assert np.angle(st.read_pair(0)[3:-3, 3:-3].mean()) == pytest.approx(-0.3, abs=0.05)
+
+
+def test_slc_pairs_coherence_in_range_and_ordered(slc_scene):
+    up = SlcPairStack.from_directory(slc_scene / "slc", antenna="u")
+    lo = SlcPairStack.from_directory(slc_scene / "slc", antenna="l")
+    assert lo.n_pairs == up.n_pairs
+    cu, cl = up.read_coherence(0), lo.read_coherence(0)
+    assert cu.shape == BIG and cu.min() >= 0 and cu.max() <= 1 + 1e-6
+    # lower antenna was given more noise: it must come out less coherent
+    assert cl.mean() < cu.mean()
+    # the daisy chain is the default; higher lags add the closing pairs
+    tri = SlcPairStack.from_directory(slc_scene / "slc", antenna="u", lags=(1, 2, 3))
+    assert tri.n_pairs == 3 + 2 + 1
+    assert list(map(tuple, tri.network.pairs))[:3] == [(0, 1), (0, 2), (0, 3)]
+    from gpri.timeseries import triplets
+    assert len(triplets(tri.network)) > 0
+    with pytest.raises(ValueError):
+        SlcPairStack.from_directory(slc_scene / "slc", lags=(0,))
+    with pytest.raises(FileNotFoundError):
+        SlcPairStack.from_directory(slc_scene / "slc", antenna="x")
+
+
+def test_slc_pairs_cache_bounded(slc_scene):
+    st = SlcPairStack.from_tab(slc_scene / "SLCu_tab", lags=(1, 2))
+    for p in range(st.n_pairs):
+        st.read_pair(p)
+        assert len(st._slcs) <= 3          # max(lags) + 1
+    st.close()
+    assert not st._slcs
+
+
+def test_slc_pairs_multilook_geometry(slc_scene):
+    st = SlcPairStack.from_tab(slc_scene / "SLCu_tab", looks=(3, 4))
+    assert st.shape == (4, 10)
+    assert st.par.range_pixel_spacing == pytest.approx(0.750349 * 4)
+    assert st.par.float("GPRI_az_angle_step") == pytest.approx(0.200004 * 3)
+    # multilooked azimuth centre sits mid-way through the 3 lines it averages
+    assert st.par.float("GPRI_az_start_angle") == pytest.approx(-27.955467 + 0.200004)
+    ifg = st.read_pair(0)
+    assert ifg.shape == (4, 10) and ifg.dtype == np.complex64
+    one = SlcPairStack.from_tab(slc_scene / "SLCu_tab").read_pair(0)
+    np.testing.assert_allclose(ifg[0, 0], one[:3, :4].mean(), rtol=1e-5)
+    # one-look closure is identically zero; multilooking makes it non-zero
+    from gpri.timeseries import closure_phase, triplets
+    for looks, expect_zero in (((1, 1), True), ((3, 4), False)):
+        s3 = SlcPairStack.from_tab(slc_scene / "SLCu_tab", lags=(1, 2), looks=looks)
+        ph = np.stack([np.angle(s3.read_pair(p)) for p in range(s3.n_pairs)])
+        c = closure_phase(ph, s3.network, triplets(s3.network))
+        assert (np.abs(c).max() < 1e-5) == expect_zero
+
+
+def test_slc_pairs_walk_patches(slc_scene):
+    st = SlcPairStack.from_tab(slc_scene / "SLCu_tab")
+    seen = 0
+    for rs, cs, ifg, cc in st.patches(rows=5, cols=40):
+        assert ifg.shape[0] == st.n_pairs and cc.shape == ifg.shape
+        seen += ifg.shape[1]
+    assert seen == BIG[0]
+    assert "SlcPairStack(3 pairs, 4 epochs" in repr(st)
+
+
+def test_cli_opens_slc_formed_stacks(slc_scene, capsys):
+    """`gpri info --antenna lower` and `--lags 1 2` work without a diff0."""
+    from gpri.cli import build_parser, _open
+    p = build_parser()
+    args = p.parse_args(["info", str(slc_scene), "--antenna", "lower"])
+    st = _open(args)
+    assert isinstance(st, SlcPairStack) and st.n_pairs == 3
+    assert st.images[0].name.endswith("l.slc")
+    args = p.parse_args(["info", str(slc_scene), "--lags", "1", "2",
+                         "--looks-pairs", "3", "4", "--max-pairs", "4"])
+    st = _open(args)
+    assert st.n_pairs == 4 and st.shape == (4, 10)
+    assert list(map(tuple, st.network.pairs)) == [(0, 1), (0, 2), (1, 2), (1, 3)]
+    # no diff0 here: the default path must say so rather than crash
+    import pytest as _pt
+    with _pt.raises(SystemExit):
+        _open(p.parse_args(["info", str(slc_scene)]))

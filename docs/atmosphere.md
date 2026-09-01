@@ -53,12 +53,24 @@ and the Randolph Glacier Inventory audit (`examples/baker_rgi.py`) later
 showed **62.8 % of that mask was on glacier**. Rescoring the 20170803 ladder
 with a true-rock reference and null (`--rgi`):
 
-| stage | ice-contaminated ref | RGI-corrected ref |
-|---|---:|---:|
-| A reference only | 47.08 mm | **29.05 mm** |
-| B + pair screens | 49.22 mm | 34.26 mm |
-| C + drift removal | 46.83 mm | 33.82 mm |
-| D + turbulence | 30.05 mm | 28.18 mm |
+| stage | ice-contaminated ref | RGI-corrected ref | RGI, lower antenna |
+|---|---:|---:|---:|
+| A reference only | 47.08 mm | **29.05 mm** | 30.53 mm |
+| B + pair screens | 49.22 mm | 34.26 mm | 35.63 mm |
+| C + drift removal | 46.83 mm | 33.82 mm | 34.54 mm |
+| D + turbulence | 30.05 mm | 28.18 mm | 29.31 mm |
+
+The last column is the same day seen by the GPRI's second (lower) receive
+antenna, formed from its SLCs with `gpri.stack.SlcPairStack` and run through
+the identical ladder (`--antenna lower`, 2026-09-01). It replicates the
+upper antenna's table stage for stage — same shape, same verdict on the
+per-pair screens — with a slightly larger held-out reference (4,822 px
+against 4,090; the lower antenna's coherence is marginally higher). The
+validated recipe without stage B (reference + drift removal + turbulence)
+scores 23.5 mm on the upper antenna's held-out rock and 23.7 mm on the
+lower's; of that, `examples/baker_antennas.py` measures 16.2 mm as
+single-antenna noise (RMS of upper − lower over √2) and 17.0 mm as
+common-mode error the two channels share.
 
 Two of the conclusions below need correcting in its light:
 

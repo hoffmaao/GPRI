@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""Closure-phase bias on the one BakerBend network that actually closes.
+"""Closure-phase bias: on the network that closes, and on the one we make close.
 
-    python examples/baker_closure.py
+    python examples/baker_closure.py                                # 20160826
+    python examples/baker_closure.py --scene 20170803 --lags 1 2 3  # from SLCs
 
-The 20170803 and 20170713 stacks are daisy chains — zero triangles, closure
-not estimable, and ``gpri closure`` refuses them.  20160826 is different: GAMMA
+The 20170803 and 20170713 stacks *as shipped* are daisy chains — zero
+triangles, closure not estimable, and ``gpri closure`` refuses them.  But the
+SLCs are on disk, and :class:`gpri.stack.SlcPairStack` forms the i->i+2 and
+i->i+3 pairs that GAMMA never did, so the Chen bias can be measured on the
+day the diurnal analysis actually uses (``--lags``).  20160826 is different: GAMMA
 processed it into **two** networks over the same epochs, a single-reference set
 (``diff0``, pairs ``1-k``) and a sequential chain (``diff2``, pairs
 ``k-(k+1)``).  Merged, they close: 27 epochs, 51 pairs, 25 triangles.
@@ -35,6 +39,7 @@ here, and that is exactly a velocity.  Nothing in this figure validates a rate.
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -82,7 +87,14 @@ def merged_network(scene: Path, dirs=("diff0", "diff2")):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--scene", type=Path, default=SCENE)
+    ap.add_argument("--scene", default=str(SCENE),
+                    help="a day key (GPRI_SCENE_<day> in site.env) or a path")
+    ap.add_argument("--lags", type=int, nargs="+", default=None,
+                    help="form the i->i+lag pairs from the SLCs instead of "
+                         "reading GAMMA's diff directories, e.g. --lags 1 2 3")
+    ap.add_argument("--antenna", default="upper", choices=("upper", "lower"))
+    ap.add_argument("--max-epochs", type=int, default=0,
+                    help="with --lags: use only the first N epochs")
     ap.add_argument("--looks", type=int, nargs=2, default=(3, 15),
                     metavar=("AZ", "RG"))
     ap.add_argument("--quantile", type=float, default=75.0,
@@ -92,28 +104,57 @@ def main():
 
     from scipy.ndimage import uniform_filter
 
-    par = ParFile.load(args.scene / "baker_mli.ave.par")
-    net, paths = merged_network(args.scene)
-    trip = triplets(net)
-    print(f"{net}")
-    print(f"triangles: {len(trip)}  (daisy chain alone would have 0)")
-
+    scene = Path(_os.environ.get(f"GPRI_SCENE_{args.scene}", args.scene))
+    day = scene.name
     la, lr = args.looks
-    phase, mag = [], []
-    for path in paths:
-        z = np.asarray(map_image(path, shape=par.shape, image_format="FCOMPLEX"))
-        zf = uniform_filter(z.real, (la, lr), mode="nearest") \
-            + 1j * uniform_filter(z.imag, (la, lr), mode="nearest")
-        zml = zf[::la, ::lr]
-        phase.append(np.angle(zml).astype(np.float32))
-        mag.append(np.abs(zml).astype(np.float32))
-    phase, mag = np.stack(phase), np.stack(mag)
-    print(f"multilooked {la}x{lr} -> {phase.shape}")
+    if args.lags:
+        # ---- pairs formed here, from the SLCs, already multilooked --------
+        import time
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from baker_aps import open_stack
+        st = open_stack(scene, args.antenna, lags=tuple(args.lags), looks=(la, lr))
+        if args.max_epochs and st.n_epochs > args.max_epochs:
+            keep = [p for p, (i, j) in enumerate(st.network.pairs)
+                    if j < args.max_epochs]
+        else:
+            keep = list(range(st.n_pairs))
+        net = Network(st.network.epochs[: (args.max_epochs or st.n_epochs)],
+                      st.network.pairs[keep])
+        par = st.par
+        trip = triplets(net)
+        print(f"{st}\n{net}")
+        print(f"triangles: {len(trip)}  (the shipped daisy chain has 0)")
+        phase = np.empty((len(keep),) + st.shape, np.float32)
+        mag = np.empty_like(phase)
+        t0 = time.time()
+        for k, p in enumerate(keep):
+            z = st.read_pair(p)
+            phase[k], mag[k] = np.angle(z), st.read_coherence(p)
+            if k % 200 == 0:
+                print(f"  formed {k + 1}/{len(keep)}  ({time.time() - t0:.0f} s)")
+        st.close()
+        print(f"formed {len(keep)} pairs multilooked {la}x{lr} -> {phase.shape} "
+              f"in {time.time() - t0:.0f} s")
+    else:
+        par = ParFile.load(scene / "baker_mli.ave.par")
+        net, paths = merged_network(scene)
+        trip = triplets(net)
+        print(f"{net}")
+        print(f"triangles: {len(trip)}  (daisy chain alone would have 0)")
+
+        phase, mag = [], []
+        for path in paths:
+            z = np.asarray(map_image(path, shape=par.shape, image_format="FCOMPLEX"))
+            zf = uniform_filter(z.real, (la, lr), mode="nearest") \
+                + 1j * uniform_filter(z.imag, (la, lr), mode="nearest")
+            zml = zf[::la, ::lr]
+            phase.append(np.angle(zml).astype(np.float32))
+            mag.append(np.abs(zml).astype(np.float32))
+        phase, mag = np.stack(phase), np.stack(mag)
+        print(f"multilooked {la}x{lr} -> {phase.shape}")
 
     # sanity: the 1-look closure is identically zero (see module docstring)
-    one_look = np.angle(np.asarray(
-        map_image(paths[0], shape=par.shape, image_format="FCOMPLEX"))[:64, :64])
-    del one_look   # kept as documentation; the multilooked stack is the data
+    # (see the module docstring: on 1-look pixels it cancels algebraically)
 
     quality = mag.mean(axis=0)
     sel = quality > np.percentile(quality, args.quantile)
@@ -141,7 +182,9 @@ def main():
     ax.set_xscale("log")
     ax.set_xlabel("temporal baseline (minutes)")
     ax.set_ylabel("closure bias (rad)")
-    ax.set_title(f"20160826 merged network: closure bias vs baseline\n"
+    what = (f"{day} {args.antenna}, lags {args.lags}" if args.lags
+            else f"{day} merged network")
+    ax.set_title(f"{what}: closure bias vs baseline\n"
                  f"rms {before:.2f} -> {after:.2f} rad after correction; "
                  f"blind to anything linear in baseline", fontsize=9)
     sec = ax.secondary_yaxis(
@@ -150,7 +193,9 @@ def main():
                    lambda d: -4 * np.pi / par.wavelength * d / 1e3))
     sec.set_ylabel("mm LOS")
     args.outdir.mkdir(parents=True, exist_ok=True)
-    out = args.outdir / "13_closure_20160826.png"
+    suffix = "" if not args.lags else \
+        ("" if args.antenna == "upper" else f"_{args.antenna}")
+    out = args.outdir / f"13_closure_{day}{suffix}.png"
     plt.tight_layout(); plt.savefig(out, dpi=150); plt.close()
     print(f"wrote {out}")
 

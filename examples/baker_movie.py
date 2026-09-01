@@ -20,6 +20,13 @@ Gaussian.  Without them a per-pixel movie of single-look data is snow — the
 √t random-walk pixel noise is several times the spatially coherent signal.
 The smoothing windows are printed on the frame rather than hidden.
 
+The ``--anomaly`` views (departure from the pixel's day mean, or from its
+linear trend) get a second panel: the **reference displacement rate** the
+anomaly is measured against -- the per-pixel linear LOS rate over the day,
+in mm/hr -- and a time strip with the median anomaly over the ice and a
+cursor at the current frame, so the diurnal swing is readable as a curve and
+not only as a colour.
+
 Geocoding is done once: the inverse map from the output grid to fractional
 radar coordinates is precomputed, and every frame is just a bilinear gather.
 """
@@ -103,18 +110,26 @@ def main():
     ap.add_argument("--rgi", action="store_true",
                     help="tie the reference to true rock: coherent pixels "
                          "outside the RGI outlines (+100 m); needs GPRI_RGI")
+    ap.add_argument("--anomaly", default="none", choices=("none", "mean", "trend"),
+                    help="show each frame as an anomaly: 'mean' subtracts the "
+                         "pixel's time-mean over the day, 'trend' also removes "
+                         "its linear (secular) rate, leaving the transient part")
     ap.add_argument("--rate-hours", type=float, default=0.0,
                     help="render LOS motion over the trailing N hours instead "
                          "of cumulative displacement -- bounded noise, and the "
                          "right view for a diurnal signal")
     ap.add_argument("--stride", type=int, default=1, help="use every Nth frame")
     ap.add_argument("--fps", type=int, default=24)
+    ap.add_argument("--antenna", default="upper", choices=("upper", "lower"),
+                    help="which receive antenna; 'lower' is formed from the "
+                         "SLCs (GAMMA only processed the upper)")
     ap.add_argument("--outdir", type=Path, default=Path("docs/figures"))
     args = ap.parse_args()
     scene = Path(SCENES.get(args.scene, args.scene))
-    day = scene.name
+    day = scene.name + ("" if args.antenna == "upper" else f"_{args.antenna}")
 
-    stack, net, phase, cc, r, az, n = load(scene, args.decimate, args.pairs)
+    stack, net, phase, cc, r, az, n = load(scene, args.decimate, args.pairs,
+                                           antenna=args.antenna)
     lam = stack.wavelength
     mean_cc = cc.mean(axis=0)
     del cc
@@ -163,8 +178,46 @@ def main():
                 d[k] = np.where(den > 0.05, num / den, np.nan)
     d[:, ~show] = np.nan
 
-    # ---------------- cumulative vs trailing-rate view ---------------------
-    if args.rate_hours > 0:
+    # ---------------- cumulative vs anomaly vs trailing-rate view ----------
+    if args.anomaly != "none" and args.rate_hours > 0:
+        raise SystemExit("--anomaly is a view of the cumulative series; "
+                         "it does not combine with --rate-hours")
+    if args.anomaly != "none":
+        # anomaly from the day's mean state.  On flowing ice the cumulative
+        # series is dominated by the secular rate, so the mean anomaly is
+        # mostly "before the middle of the day / after it"; the trend anomaly
+        # removes that too and shows what departs from steady flow -- which
+        # is where a diurnal hydrological response would appear.
+        tt = (times - times[0]).astype(np.float64)          # days
+        finite = np.isfinite(d)
+        cnt = finite.sum(axis=0)
+        dz = np.where(finite, d, 0.0)
+        mean = dz.sum(axis=0) / np.maximum(cnt, 1)
+        tm = (np.where(finite, tt[:, None, None], 0.0).sum(axis=0)
+              / np.maximum(cnt, 1))
+        tc = np.where(finite, tt[:, None, None] - tm, 0.0)
+        rate = (tc * (dz - mean)).sum(axis=0) / np.maximum((tc ** 2).sum(axis=0), 1e-12)
+        # the reference the anomaly is read against: the day's linear LOS
+        # rate per pixel, shown beside the animation in mm/hr
+        ref_mm_h = np.where((cnt >= 2) & show, rate * 1000 / 24.0, np.nan)
+        if args.anomaly == "trend":
+            d = d - mean - rate * (tt[:, None, None] - tm)
+            label, title = "Trend anomaly (mm)", "departure from the day's linear trend"
+            ref_label = "Reference rate (mm/hr)"
+            ref_title = "reference removed: linear LOS rate over the day"
+        else:
+            d = d - mean
+            label, title = "Mean anomaly (mm)", "departure from the day's mean"
+            ref_label = "Reference rate (mm/hr)"
+            ref_title = "reference: linear LOS rate over the day"
+        d[:, cnt < 2] = np.nan
+        # the same anomaly as a curve: median over the moving (non-reference)
+        # pixels, with the interquartile band, so the frame's place in the
+        # diurnal swing is readable at a glance
+        moving = show & ~stable & (cnt >= 2)
+        q25, q50, q75 = np.nanpercentile(d[:, moving], [25, 50, 75], axis=1) * 1000
+        tag = f"anom{args.anomaly}_"
+    elif args.rate_hours > 0:
         # motion over the trailing window: d(t) - d(t - w).  Unlike the
         # cumulative view this does not accumulate the random walk, so the
         # noise is bounded for the whole movie -- the right way to look for a
@@ -176,10 +229,12 @@ def main():
             if times[k] - times[0] >= w:
                 dd[k] = d[k] - d[lag[k]]
         d = dd
-        label = f"LOS motion over trailing {args.rate_hours:g} h (mm, + toward radar)"
+        label = "LOS motion (mm)"
+        title = f"motion over the trailing {args.rate_hours:g} h"
         tag = f"rate{args.rate_hours:g}h_"
     else:
-        label = "LOS displacement since start (mm, + toward radar)"
+        label = "LOS displacement (mm)"
+        title = "cumulative since the first acquisition"
         tag = ""
 
     # ---------------- geocode once, sample per frame -----------------------
@@ -211,22 +266,54 @@ def main():
     extent = [xmin / 1000, (xmin + sx * first.shape[1]) / 1000,
               (ymax + sy * first.shape[0]) / 1000, ymax / 1000]
 
-    fig, ax = plt.subplots(figsize=(7.68, 6.40), dpi=100)
-    if bg_map is not None:
-        ax.imshow(bg_map, cmap="gray", extent=extent, origin="upper",
-                  vmin=np.nanpercentile(bg_map, 2),
-                  vmax=np.nanpercentile(bg_map, 98),
-                  interpolation="bilinear")
-    im = ax.imshow(first * 1000, cmap="RdBu_r", vmin=-lim, vmax=lim,
-                   extent=extent, origin="upper", interpolation="nearest")
-    ax.plot(x0 / 1000, y0 / 1000, "^", ms=9, mfc="w", mec="k", mew=1.4)
-    ax.set_xlim(x_lo, x_hi)
-    ax.set_ylim(y_lo, y_hi)
-    ax.set_xlabel("easting (km)")
-    ax.set_ylabel("northing (km)")
-    ax.set_aspect("equal")
-    cb = fig.colorbar(im, ax=ax, pad=0.02, fraction=0.046)
-    cb.set_label(label)
+    def map_panel(ax_, img_mm, lim_, label_, title_):
+        if bg_map is not None:
+            ax_.imshow(bg_map, cmap="gray", extent=extent, origin="upper",
+                       vmin=np.nanpercentile(bg_map, 2),
+                       vmax=np.nanpercentile(bg_map, 98),
+                       interpolation="bilinear")
+        im_ = ax_.imshow(img_mm, cmap="RdBu_r", vmin=-lim_, vmax=lim_,
+                         extent=extent, origin="upper", interpolation="nearest")
+        ax_.plot(x0 / 1000, y0 / 1000, "^", ms=9, mfc="w", mec="k", mew=1.4)
+        ax_.set_xlim(x_lo, x_hi)
+        ax_.set_ylim(y_lo, y_hi)
+        ax_.set_xlabel("easting (km)")
+        ax_.set_ylabel("northing (km)")
+        ax_.set_aspect("equal")
+        cb_ = fig.colorbar(im_, ax=ax_, pad=0.02, fraction=0.046)
+        cb_.set_label(label_)
+        ax_.set_title(f"{title_}  (+ toward radar)", fontsize=9)
+        return im_
+
+    cursor = None
+    if args.anomaly != "none":
+        # anomaly | reference rate, with the anomaly curve underneath
+        fig = plt.figure(figsize=(12.8, 7.2), dpi=100, constrained_layout=True)
+        gs = fig.add_gridspec(2, 2, height_ratios=[4.6, 1.0])
+        ax = fig.add_subplot(gs[0, 0])
+        ax_ref = fig.add_subplot(gs[0, 1], sharex=ax, sharey=ax)
+        ax_ts = fig.add_subplot(gs[1, :])
+        ref_map = rs(ref_mm_h.astype(np.float32))
+        lim_ref = max(float(np.nanpercentile(np.abs(ref_map), 98)), 0.1)
+        map_panel(ax_ref, ref_map, lim_ref, ref_label, ref_title)
+        ax_ref.set_ylabel("")
+        hh = tt * 24
+        ax_ts.fill_between(hh, q25, q75, color="0.6", alpha=0.35, lw=0,
+                           label="interquartile range")
+        ax_ts.plot(hh, q50, color="k", lw=1.2, label="median")
+        ax_ts.axhline(0, color="0.5", lw=0.6)
+        cursor = ax_ts.axvline(hh[0], color="r", lw=1.4)
+        ax_ts.set_xlim(hh[0], hh[-1])
+        ax_ts.set_xlabel("Elapsed time (hr)")
+        ax_ts.set_ylabel("Ice anomaly (mm)")
+        ax_ts.set_title(f"median and interquartile range over the moving "
+                        f"pixels, from {net.epochs[0]:%Y-%m-%d %H:%M} UTC",
+                        fontsize=9)
+        ax_ts.legend(loc="upper right", fontsize=8, frameon=False, ncol=2)
+        ax_ts.grid(alpha=0.3)
+    else:
+        fig, ax = plt.subplots(figsize=(7.68, 6.40), dpi=100)
+    im = map_panel(ax, first * 1000, lim, label, title)
     clock = ax.text(0.02, 0.975, "", transform=ax.transAxes, va="top",
                     fontsize=11, family="monospace",
                     bbox=dict(fc="w", alpha=0.8, ec="none"))
@@ -235,7 +322,8 @@ def main():
             f"gaussian {args.s_smooth} px",
             transform=ax.transAxes, fontsize=7, color="0.35",
             bbox=dict(fc="w", alpha=0.7, ec="none"))
-    fig.tight_layout()
+    if cursor is None:
+        fig.tight_layout()
 
     out = args.outdir / f"14_los_movie_{tag}{day}.mp4"
     args.outdir.mkdir(parents=True, exist_ok=True)
@@ -247,7 +335,9 @@ def main():
             im.set_data(rs(d[k]) * 1000)
             ep = net.epochs[k]
             hours = (times[k] - times[0]) * 24
-            clock.set_text(f"{ep:%Y-%m-%d %H:%M} UTC   +{hours:5.2f} h")
+            clock.set_text(f"{ep:%Y-%m-%d %H:%M} UTC   +{hours:5.2f} hr")
+            if cursor is not None:
+                cursor.set_xdata([hours, hours])
             writer.grab_frame()
             if i % 100 == 0:
                 print(f"  frame {i + 1}/{len(frames)}  ({time.time() - t0:.0f} s)")

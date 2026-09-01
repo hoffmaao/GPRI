@@ -9,7 +9,8 @@ Pipeline
 --------
 1.  :mod:`gpri.gamma`         read GAMMA parameter files and binary rasters
 2.  :mod:`gpri.network`       epochs, pairs, design matrices, closure triplets
-3.  :mod:`gpri.stack`         patch-wise access to a whole ``diff0`` directory
+3.  :mod:`gpri.stack`         patch-wise access to a whole ``diff0`` directory,
+                              or pairs formed on demand from the SLCs
 4.  :mod:`gpri.covariance`    sample coherence matrices
 5.  :mod:`gpri.phaselink`     EVD / eigenSAR / EMI / ML phase linking
 6.  :mod:`gpri.atmosphere`    range-dependent refractivity screen removal
@@ -34,7 +35,7 @@ toward the radar** (a decrease in slant range).  See
 """
 from __future__ import annotations
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 from . import (aps, atmosphere, closure, covariance, diurnal, gamma, geocode,
                glaciers,
@@ -50,7 +51,7 @@ from .pairlsq import fit_pairs
 from .phaselink import phase_link, temporal_coherence
 from .psinterp import select_ps, unwrap_with_ps
 from .refractivity import invert_refractivity, refractivity as refractivity_of
-from .stack import DiffStack
+from .stack import DiffStack, SlcPairStack
 from .timeseries import invert_network, los_displacement, stack_velocity
 
 __all__ = [
@@ -61,7 +62,7 @@ __all__ = [
     "ParFile", "read_image", "read_slc", "write_image",
     "Network", "read_itab", "read_slc_tab",
     "phase_link", "temporal_coherence",
-    "DiffStack",
+    "DiffStack", "SlcPairStack",
     "los_displacement", "invert_network", "stack_velocity",
     "estimate_bias", "correct_bias",
     "invert_screens", "epoch_screen_correction", "turbulence_screen",
