@@ -226,9 +226,18 @@ map frame — backscatter backdrop, real UTC clock, both processed days:
 - the same pair for `20170713`
 
 Corrections are the validated recipe (reference + drift removal + turbulence,
-no per-pair screens). Display smoothing — a rolling temporal mean and a light
-spatial Gaussian — is printed on every frame rather than hidden; without it a
-per-pixel movie of single-look data is snow.
+no per-pair screens), referenced to **true rock** — coherent pixels outside
+the RGI outlines (`--rgi`). That matters visually as much as statistically:
+with the old coherence-only reference the corrections were partly subtracting
+glacier motion, and the field looked patchy and two-signed. Tied to rock, a
+coherent toward-radar lobe appears over Coleman and Roosevelt, reaching
+~25 mm per 2 h in the rate view.
+
+Two caveats stay attached. The true-rock reference is smaller (8,180 px
+against 22,046 at this decimation), so the epoch screens extrapolate further
+over the ice than before. And display smoothing — a rolling temporal mean and
+a light spatial Gaussian — is printed on every frame rather than hidden;
+without it a per-pixel movie of single-look data is snow.
 
 ### Atmospheric correction, validated on held-out bedrock
 
