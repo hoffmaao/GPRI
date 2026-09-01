@@ -21,7 +21,9 @@ beyond about 8 km the beam is in shadow behind the mountain.*
 ```
 gamma/         read GAMMA parameter files and binary rasters
 network/       epochs, pairs, SBAS design matrices, closure triplets
-stack/         patch-wise access to a whole diff0 directory (50 GB, memory-mapped)
+stack/         patch-wise access to a whole diff0 directory (50 GB, memory-mapped),
+               or the same interface formed on demand from SLCs (either antenna,
+               any lag set, any multilook)
 covariance/    sample coherence matrices
 phaselink/     EVD, eigenSAR, EMI and exact ML phase linking
 atmosphere/    range-dependent refractivity screens, estimated on wrapped phase
@@ -247,6 +249,16 @@ map frame — backscatter backdrop, real UTC clock, both processed days:
   — motion over a trailing 2 h window, the right view for a diurnal signal:
   unlike the cumulative view its noise is bounded instead of growing as √t
 - the same pair for `20170713`
+- [`14_los_movie_anommean_20170803.mp4`](docs/figures/14_los_movie_anommean_20170803.mp4)
+  and [`14_los_movie_anomtrend_20170803.mp4`](docs/figures/14_los_movie_anomtrend_20170803.mp4)
+  — each frame as an **anomaly**: the pixel's departure from its day mean
+  (`--anomaly mean`), or from its linear trend (`--anomaly trend`), which is
+  what a diurnal response looks like once steady flow is taken out. These
+  carry a second panel with the **reference displacement rate** the anomaly
+  is read against — the per-pixel linear LOS rate over the day, in mm/h —
+  and a time strip with the median anomaly over the moving pixels, its
+  interquartile band, and a cursor at the current frame. Same two views for
+  `20170713`.
 
 Corrections are the validated recipe (reference + drift removal + turbulence,
 no per-pair screens), referenced to **true rock** — coherent pixels outside
@@ -261,6 +273,46 @@ against 22,046 at this decimation), so the epoch screens extrapolate further
 over the ice than before. And display smoothing — a rolling temporal mean and
 a light spatial Gaussian — is printed on every frame rather than hidden;
 without it a per-pixel movie of single-look data is snow.
+
+### Two antennas, one day: the replicate
+
+The GPRI-II receives on two antennas 25 cm apart on the same mast, sampled in
+the same sweep, and GAMMA only ever processed the upper one. `SlcPairStack`
+forms the lower antenna's daisy chain from its SLCs, and
+`examples/baker_antennas.py` runs the identical chain — RGI reference, held-out
+split, corrections, pair-domain diurnal fit — on both
+([`17_antennas_20170803.png`](docs/figures/17_antennas_20170803.png)):
+
+| | upper | lower |
+|---|---:|---:|
+| ladder A / D, held-out rock | 29.1 / 28.2 mm | 30.5 / 29.3 mm |
+| ice median diurnal amplitude | 16.6 mm | 16.5 mm |
+| ice above SNR 3 | 7.7 % | 7.0 % |
+| held-out rock above SNR 3 (false alarms) | 0.8 % | 0.9 % |
+
+Every number replicates, which is the first time this pipeline has had a
+replicate at all. Two things follow that a single antenna could never give:
+
+- **A measured noise floor.** `upper − lower` cancels deformation,
+  atmosphere and reference error alike. On held-out rock
+  RMS(u − l)/√2 = **16.2 mm** over the day, against 23.5 mm total, so
+  17.0 mm of the rock residual is *common-mode* — shared error the two
+  channels cannot see, not measurement noise. (Surface decorrelation is
+  common to both antennas too, so 16 mm is a lower bound on single-antenna
+  noise and 17 mm an upper bound on atmosphere plus reference.)
+- **A replication test for the diurnal detections.** 494 ice pixels
+  (1.9 %) pass SNR 3 in *both* antennas — 3.5× the 0.5 % that two
+  independent chance detections would give — and their peak times agree:
+  median difference −0.1 h, interquartile range 2.0 h, 81 % within 2 h,
+  where independent noise would spread them uniformly over 24 h. On rock,
+  0.07 % survive the same test.
+
+Averaging the two channels raises the ice median SNR from 1.54 to 1.73 — not
+the √2 = 2.18 of independent noise, because the rest is common-mode. Which
+is also the limit of the replicate: the antennas share the atmosphere, so
+agreement between them is evidence against phase noise, not against
+atmosphere. The held-out-bedrock false-alarm rate remains the atmosphere
+control.
 
 ### Atmospheric correction, validated on held-out bedrock
 
@@ -359,13 +411,30 @@ v = stack_velocity(los_displacement(np.angle(ifg), stack.wavelength),
 
 geom = RadarGeometry(stack.par, heading=105.0)      # see the caveat below
 v_map, transform = geocode_image(v, geom, spacing=25.0)
+
+# the same interface, formed from SLCs: lower antenna, i->i+1..3, 3x15 looks
+from gpri import SlcPairStack
+lower = SlcPairStack.from_directory(f"{S}/slc", antenna="l",
+                                    lags=(1, 2, 3), looks=(3, 15))
 ```
 
-Reproduce the figures in `docs/figures/`:
+Reproduce the figures in `docs/figures/` (the scripts cache the decimated
+day under `GPRI_WORK_ROOT`, so only the first one pays for the read):
 
 ```bash
 python examples/baker_north_side.py --pairs 200 --decimate 8 --spacing 25
 python examples/baker_diurnal.py --decimate 16        # full day + the three tests
+python examples/baker_aps.py --scene 20170803 --decimate 16 --sigma 5 25 --rgi --screens-on-bedrock
+python examples/baker_rgi.py --scene 20170803 --decimate 16
+python examples/baker_pairlsq.py --scene 20170803 --decimate 16 --rgi
+python examples/baker_movie.py --scene 20170803 --rgi                  # cumulative
+python examples/baker_movie.py --scene 20170803 --rgi --rate-hours 2
+python examples/baker_movie.py --scene 20170803 --rgi --anomaly mean   # + reference rate panel
+python examples/baker_movie.py --scene 20170803 --rgi --anomaly trend
+# the lower antenna: every script takes --antenna lower
+python examples/baker_antennas.py --scene 20170803 --decimate 16 --rgi
+# closure on the day the analysis uses: pairs formed from the SLCs
+python examples/baker_closure.py --scene 20170803 --lags 1 2 3 30 60 90 180 360 --looks 3 15
 ```
 
 ## The scan heading is not in the data
@@ -407,16 +476,24 @@ Machine-specific locations — data roots, scene directories, scratch — live i
 `site.env.example` and fill it in. Nothing in the repository names a host, a
 mount point, or a storage layout.
 
-The default scene, `20170803`, holds 723
-upper-antenna SLCs (95 GB) plus a `diff0/` with 723 interferograms and matching
-coherence rasters — 396 × 22101 FCOMPLEX, 70 MB each, 50 GB for the stack.
-Nothing here loads that: every raster is memory-mapped and read in tiles.
+The default scene, `20170803`, holds 723 SLCs for **each of the two receive
+antennas** (95 GB) plus a `diff0/` with 722 upper-antenna interferograms and
+matching coherence rasters — 396 × 22101 FCOMPLEX, 70 MB each, 50 GB for the
+stack. Nothing here loads that: every raster is memory-mapped and read in
+tiles.
 
-Two things worth knowing about it:
+Three things worth knowing about it:
 
 - The `itab` is a **daisy chain** (1–2, 2–3, 3–4, …), so the network contains
-  no closed triangles and `gpri closure` correctly refuses. Form the *i*→*i*+2
-  interferograms to get closure.
+  no closed triangles and `gpri closure` correctly refuses. `SlcPairStack`
+  forms the *i*→*i*+2, *i*→*i*+3 interferograms from the SLCs on demand
+  (`--lags 1 2 3`), which is how the closure figure for this day was made.
+- GAMMA only processed the **upper** antenna. The lower antenna's SLCs are
+  there, 25 cm below, sampled in the same sweeps; `SlcPairStack` (or any
+  script's `--antenna lower`) runs the identical chain on them. Its products
+  are exchangeable with GAMMA's: the phase of `s_i * conj(s_j)` matches the
+  `.diff` to 2e-7 rad, and a 5 × 5 triangular-window coherence reproduces the
+  `.cc` at correlation 0.998.
 - The `.diff` files are **magnitude-normalised** — `abs(ifg)` is 0 dB
   everywhere. Backscatter for figure backdrops comes from the MLIs
   (`baker_mli_upper.ave`), on the identical grid.

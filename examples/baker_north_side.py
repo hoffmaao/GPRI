@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """End-to-end: BakerBend1 GAMMA interferograms -> LOS velocity on a map.
 
-Runs the whole package against the real ``diff0`` stack on rd03 and writes the
+Runs the whole package against the real ``diff0`` stack and writes the
 figures in ``docs/figures/``.  No GAMMA binaries involved — this reads GAMMA's
 output rasters directly.
 

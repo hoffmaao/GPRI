@@ -38,13 +38,12 @@ _site.load_site()
 
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from baker_aps import SCENES                                       # noqa: E402
+from baker_aps import SCENES, open_stack                           # noqa: E402
 from baker_north_side import decimated_par, read_backdrop          # noqa: E402
 
 from gpri.geocode import BAKERBEND1_HEADING, RadarGeometry, geocode  # noqa: E402
 from gpri.glaciers import (glacier_mask, load_outlines, outline_paths,  # noqa: E402
                            stable_ground_mask)
-from gpri.stack import DiffStack                                   # noqa: E402
 
 
 def main():
@@ -61,13 +60,16 @@ def main():
     ap.add_argument("--rgi", type=Path,
                     default=Path(_os.environ.get("GPRI_RGI",
                                                  "data/rgi/rgi_61.zip")))
+    ap.add_argument("--antenna", default="upper", choices=("upper", "lower"),
+                    help="which receive antenna; 'lower' is formed from the "
+                         "SLCs (GAMMA only processed the upper)")
     ap.add_argument("--outdir", type=Path, default=Path("docs/figures"))
     args = ap.parse_args()
     scene = Path(SCENES.get(args.scene) or args.scene)
-    day = scene.name
+    day = scene.name + ("" if args.antenna == "upper" else f"_{args.antenna}")
 
     # ---- mean coherence from a stride of pairs -----------------------------
-    stack = DiffStack.from_directory(scene / "diff0", slc_tab=scene / "SLCu_tab")
+    stack = open_stack(scene, args.antenna)
     dec = args.decimate
     nc = stack.shape[1] // dec
     t0 = time.time()

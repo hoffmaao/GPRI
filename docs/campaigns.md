@@ -28,8 +28,13 @@ balcony and short field tests under an hour, listed by the survey tool but not
 useful for this question.
 
 Stage means: **raw** — FMCW sweeps only, needs GAMMA `par_GPRI2_SLC`; **slc** —
-focused complex images, interferograms can be formed with numpy alone; **diff**
-— interferograms already formed, ready for the whole package.
+focused complex images, which `gpri.stack.SlcPairStack` turns into
+interferograms and coherence on demand (either antenna, any lag set, any
+multilook — validated against GAMMA's own `.diff`/`.cc`); **diff** —
+interferograms already formed by GAMMA.  For this package **slc** and
+**diff** are equally usable; a GAMMA `diff0/` only covers the upper antenna
+and lag 1, so even on `20170803` the lower antenna and the closure network
+come from the SLCs.
 
 ## What this means
 
@@ -60,7 +65,12 @@ is the single highest-value thing a GAMMA license would unlock.**
 to interferograms, and the default scene for this repository. One cycle
 exactly — enough to fit a diurnal harmonic (`gpri.diurnal` refuses anything
 shorter) but not enough to check that it repeats, and marginal for separating
-amplitude from secular rate.
+amplitude from secular rate. Its SLCs cover **both receive antennas**, which
+gives the one replicate the campaign has: the lower antenna, formed by
+`SlcPairStack`, run through the identical chain (`examples/baker_antennas.py`
+— the noise floor and the replication test in the README). The same SLCs
+supply the *i*→*i*+2, *i*→*i*+3 (and longer) pairs the shipped daisy chain
+lacks, so closure phase is measurable on this day too.
 
 `20170713` is processed to interferograms too but spans 21.8 h — **0.91 of a
 cycle**. `gpri.diurnal.harmonic_design` refuses it, correctly: over less than
@@ -69,10 +79,11 @@ returned there would be meaningless. The raw for that campaign does cover a
 full 24.0 h, so reprocessing the missing acquisitions would make it usable —
 again needing GAMMA.
 
-`20160826` is short (3.7 h processed) but uniquely valuable for one thing: it
-was processed into **both** a single-reference and a chain network, so the
-merged set has 25 closed triangles — the only real closure data available
-(`examples/baker_closure.py`).
+`20160826` is short (3.7 h processed) but was processed into **both** a
+single-reference and a chain network, so the merged set has 25 closed
+triangles from GAMMA's own products — the closure data that needs nothing
+formed here (`examples/baker_closure.py`). With `SlcPairStack` the same
+script measures closure on `20170803` from thousands of triangles.
 
 ## Recommended order
 

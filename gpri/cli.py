@@ -35,17 +35,39 @@ from .covariance import coherence_from_slcs
 from .gamma import ParFile, read_slc, write_image
 from .network import Network, read_slc_tab
 from .phaselink import phase_link, temporal_coherence
-from .stack import DiffStack
+from .stack import DiffStack, SlcPairStack
 from .timeseries import invert_network, los_displacement, stack_velocity
 
 
 # ------------------------------------------------------------------- plumbing
 def _open(args):
     scene = Path(args.scene)
+    antenna = getattr(args, "antenna", "upper")
+    lags = tuple(getattr(args, "lags", None) or ())
+    looks = tuple(getattr(args, "looks_pairs", None) or (1, 1))
+    tab = scene / args.slc_tab
+    if antenna != "upper" or lags or looks != (1, 1):
+        # Pairs formed from the SLCs: the lower antenna, a lag network with
+        # closed triangles, or multilooked products -- none of which GAMMA
+        # wrote to diff0.  See gpri.stack.SlcPairStack.
+        lags = lags or (1,)
+        letter = antenna[0].lower()
+        if letter == "u" and tab.exists():
+            st = SlcPairStack.from_tab(tab, lags=lags, looks=looks)
+        else:
+            slc_dir = scene / getattr(args, "slc_dir", "slc")
+            if not slc_dir.is_dir():
+                raise SystemExit(f"no SLC directory at {slc_dir}")
+            st = SlcPairStack.from_directory(slc_dir, antenna=letter,
+                                             lags=lags, looks=looks)
+        if args.max_pairs and st.n_pairs > args.max_pairs:
+            keep = np.arange(args.max_pairs)
+            st.network = Network(st.network.epochs, st.network.pairs[keep])
+            st._pairs = [st._pairs[k] for k in keep]
+        return st
     diff = scene / args.diff_dir
     if not diff.is_dir():
         raise SystemExit(f"no interferogram directory at {diff}")
-    tab = scene / args.slc_tab
     st = DiffStack.from_directory(diff, slc_tab=tab if tab.exists() else None,
                                   suffix=args.suffix)
     if args.max_pairs and st.n_pairs > args.max_pairs:
@@ -455,6 +477,16 @@ def build_parser():
         sp.add_argument("--max-pairs", type=int, default=0,
                         help="use only the first N pairs (kept contiguous so "
                              "the network stays connected)")
+        sp.add_argument("--antenna", default="upper", choices=("upper", "lower"),
+                        help="'lower' forms that antenna's pairs from the SLCs "
+                             "in --slc-dir (GAMMA only wrote the upper's)")
+        sp.add_argument("--slc-dir", default="slc")
+        sp.add_argument("--lags", type=int, nargs="+", default=None,
+                        help="form i->i+lag pairs from the SLCs instead of "
+                             "reading diff0, e.g. --lags 1 2 3 for closure")
+        sp.add_argument("--looks-pairs", type=int, nargs=2, default=None,
+                        metavar=("AZ", "RG"),
+                        help="multilook SLC-formed pairs (default 1 1)")
         if window:
             sp.add_argument("--rows", help="azimuth window, e.g. 180:220")
             sp.add_argument("--cols", help="range window, e.g. 0:8000")

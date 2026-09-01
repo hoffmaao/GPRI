@@ -54,12 +54,16 @@ def main():
     ap.add_argument("--rgi", action="store_true",
                     help="reference/null masks exclude RGI glacier outlines")
     ap.add_argument("--snr-threshold", type=float, default=3.0)
+    ap.add_argument("--antenna", default="upper", choices=("upper", "lower"),
+                    help="which receive antenna; 'lower' is formed from the "
+                         "SLCs (GAMMA only processed the upper)")
     ap.add_argument("--outdir", type=Path, default=Path("docs/figures"))
     args = ap.parse_args()
     scene = Path(SCENES.get(args.scene, args.scene))
-    day = scene.name
+    day = scene.name + ("" if args.antenna == "upper" else f"_{args.antenna}")
 
-    stack, net, phase, cc, r, az, n = load(scene, args.decimate, args.pairs)
+    stack, net, phase, cc, r, az, n = load(scene, args.decimate, args.pairs,
+                                           antenna=args.antenna)
     lam = stack.wavelength
     mean_cc = cc.mean(axis=0)
     # per-pair scalar weight: median coherence over the usable swath.
