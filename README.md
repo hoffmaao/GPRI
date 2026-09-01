@@ -150,6 +150,29 @@ single-step least-squares numbers below. The overlay also doubles as an
 independent check on the unsurveyed scan heading: at 105° the inventory
 outlines land on the right backscatter features.
 
+### Does the pipeline actually recover ice motion?
+
+The sharpest check available, on the corrected 20170803 day — cumulative LOS
+displacement after 24.2 h, RGI-defined ice against **held-out** rock (rock the
+corrections never saw):
+
+| | pixels | median | mean | p16–p84 |
+|---|---:|---:|---:|---:|
+| RGI ice | 26,401 | **+62.2 mm** | +80.3 mm | −19 to +189 |
+| held-out rock | 4,090 | **−2.5 mm** | −0.1 mm | −29 to +27 |
+
+Rock sits at zero — as unmoving ground must, and it was never used to fit the
+corrections — while the ice moves 62 mm toward the radar over the day. The
+correlation between ice displacement and slant range is **−0.07**, so this is
+not the epoch screens extrapolating a ramp over the ice; it is spatially
+organised motion where the inventory says there is a glacier. A day of
+~60 mm LOS is the right order for Coleman and Roosevelt flow projected onto a
+near-horizontal look direction.
+
+This is the secular signal, and it is the part the old ice-contaminated
+reference was actively destroying. The diurnal remains the harder question
+below.
+
 ### Single-step least squares, after Ohenhen et al.
 
 `gpri.pairlsq` fits the temporal model — secular rate + diurnal harmonics (+
