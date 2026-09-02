@@ -20,12 +20,16 @@ Gaussian.  Without them a per-pixel movie of single-look data is snow — the
 √t random-walk pixel noise is several times the spatially coherent signal.
 The smoothing windows are printed on the frame rather than hidden.
 
-The ``--anomaly`` views (departure from the pixel's day mean, or from its
-linear trend) get a second panel: the **reference displacement rate** the
-anomaly is measured against -- the per-pixel linear LOS rate over the day,
-in mm/hr -- and a time strip with the median anomaly over the ice and a
-cursor at the current frame, so the diurnal swing is readable as a curve and
-not only as a colour.
+The ``--anomaly`` views (departure from the pixel's day mean, from its
+linear trend, or from its secular rate measured by same-hour differences)
+get a second panel: the **reference displacement rate** the anomaly is
+measured against -- the per-pixel LOS rate over the day, in m/yr -- and a
+time strip with the median anomaly over the ice and a cursor at the current
+frame, so the diurnal swing is readable as a curve and not only as a colour.
+``--anomaly periodic`` needs a record longer than one cycle: the rate is
+the population's same-hour rate (:func:`gpri.diurnal.secular_slope`), which
+no 24 h waveform can tilt, applied as a common correction to every pixel's
+linear rate.
 
 Geocoding is done once: the inverse map from the output grid to fractional
 radar coordinates is precomputed, and every frame is just a bilinear gather.
@@ -50,7 +54,9 @@ from baker_aps import SCENES, load, integrate                      # noqa: E402
 from baker_north_side import read_backdrop                         # noqa: E402
 
 from gpri.aps import epoch_screen_correction, turbulence_screen    # noqa: E402
+from gpri.diurnal import DIURNAL, MIN_CYCLES, m_per_yr, secular_slope  # noqa: E402
 from gpri.geocode import BAKERBEND1_HEADING, RadarGeometry, map_grid  # noqa: E402
+from gpri.heading import scene_heading                              # noqa: E402
 from gpri.timeseries import los_displacement                       # noqa: E402
 
 
@@ -96,7 +102,9 @@ def main():
     ap.add_argument("--scene", default="20170803")
     ap.add_argument("--decimate", type=int, default=16)
     ap.add_argument("--pairs", type=int, default=0)
-    ap.add_argument("--heading", type=float, default=BAKERBEND1_HEADING)
+    ap.add_argument("--heading", type=float, default=None,
+                    help="scan heading, deg true (default: the scene's "
+                         "heading.json from `gpri heading --write`)")
     ap.add_argument("--spacing", type=float, default=40.0)
     ap.add_argument("--stable-coherence", type=float, default=0.85)
     ap.add_argument("--show-coherence", type=float, default=0.4,
@@ -110,10 +118,13 @@ def main():
     ap.add_argument("--rgi", action="store_true",
                     help="tie the reference to true rock: coherent pixels "
                          "outside the RGI outlines (+100 m); needs GPRI_RGI")
-    ap.add_argument("--anomaly", default="none", choices=("none", "mean", "trend"),
+    ap.add_argument("--anomaly", default="none",
+                    choices=("none", "mean", "trend", "periodic"),
                     help="show each frame as an anomaly: 'mean' subtracts the "
                          "pixel's time-mean over the day, 'trend' also removes "
-                         "its linear (secular) rate, leaving the transient part")
+                         "its linear (secular) rate, leaving the transient part; "
+                         "'periodic' removes the secular rate measured by "
+                         "same-hour differences instead (record > 24 h)")
     ap.add_argument("--rate-hours", type=float, default=0.0,
                     help="render LOS motion over the trailing N hours instead "
                          "of cumulative displacement -- bounded noise, and the "
@@ -126,10 +137,18 @@ def main():
     ap.add_argument("--outdir", type=Path, default=Path("docs/figures"))
     args = ap.parse_args()
     scene = Path(SCENES.get(args.scene, args.scene))
+    if args.heading is None:
+        args.heading = scene_heading(scene, default=BAKERBEND1_HEADING)
     day = scene.name + ("" if args.antenna == "upper" else f"_{args.antenna}")
 
     stack, net, phase, cc, r, az, n = load(scene, args.decimate, args.pairs,
                                            antenna=args.antenna)
+    if args.anomaly == "periodic" and \
+            net.times[-1] - net.times[0] < MIN_CYCLES * DIURNAL:
+        print(f"{day} spans {(net.times[-1] - net.times[0]) * 24:.1f} h: the "
+              f"same-hour rate needs a day -- no periodic view, the trend "
+              f"view is the product")
+        return
     lam = stack.wavelength
     mean_cc = cc.mean(axis=0)
     del cc
@@ -197,24 +216,43 @@ def main():
               / np.maximum(cnt, 1))
         tc = np.where(finite, tt[:, None, None] - tm, 0.0)
         rate = (tc * (dz - mean)).sum(axis=0) / np.maximum((tc ** 2).sum(axis=0), 1e-12)
-        # the reference the anomaly is read against: the day's linear LOS
-        # rate per pixel, shown beside the animation in mm/hr
-        ref_mm_h = np.where((cnt >= 2) & show, rate * 1000 / 24.0, np.nan)
+        moving = show & ~stable & (cnt >= 2)
+        if args.anomaly == "periodic":
+            # the line's tilt under a shared 24 h waveform is the same for
+            # every pixel: measure it once on the moving population's
+            # linear anomaly and put it back into every rate
+            lin = d - mean - rate * (tt[:, None, None] - tm)
+            med = np.nanmedian(lin[:, moving], axis=1)
+            del lin
+            try:
+                tilt, n_same = secular_slope(
+                    tt, med, tolerance=(1 - MIN_CYCLES) * DIURNAL)
+            except ValueError as e:
+                raise SystemExit(f"--anomaly periodic: {e}")
+            rate = rate + tilt
+            print(f"same-hour rate over {n_same} epoch pairs: the linear rate "
+                  f"under-states the ice's secular rate by "
+                  f"{m_per_yr(tilt):+.2f} m/yr")
+        # the reference the anomaly is read against: the day's LOS rate per
+        # pixel, shown beside the animation in m/yr
+        ref_rate = np.where((cnt >= 2) & show, m_per_yr(rate), np.nan)
+        ref_label = "Reference rate (m/yr)"
         if args.anomaly == "trend":
             d = d - mean - rate * (tt[:, None, None] - tm)
             label, title = "Trend anomaly (mm)", "departure from the day's linear trend"
-            ref_label = "Reference rate (mm/hr)"
             ref_title = "reference removed: linear LOS rate over the day"
+        elif args.anomaly == "periodic":
+            d = d - mean - rate * (tt[:, None, None] - tm)
+            label, title = "Trend anomaly (mm)", "departure from the same-hour secular rate"
+            ref_title = "reference removed: LOS rate by same-hour differences"
         else:
             d = d - mean
             label, title = "Mean anomaly (mm)", "departure from the day's mean"
-            ref_label = "Reference rate (mm/hr)"
             ref_title = "reference: linear LOS rate over the day"
         d[:, cnt < 2] = np.nan
         # the same anomaly as a curve: median over the moving (non-reference)
         # pixels, with the interquartile band, so the frame's place in the
         # diurnal swing is readable at a glance
-        moving = show & ~stable & (cnt >= 2)
         q25, q50, q75 = np.nanpercentile(d[:, moving], [25, 50, 75], axis=1) * 1000
         tag = f"anom{args.anomaly}_"
     elif args.rate_hours > 0:
@@ -277,8 +315,8 @@ def main():
         ax_.plot(x0 / 1000, y0 / 1000, "^", ms=9, mfc="w", mec="k", mew=1.4)
         ax_.set_xlim(x_lo, x_hi)
         ax_.set_ylim(y_lo, y_hi)
-        ax_.set_xlabel("easting (km)")
-        ax_.set_ylabel("northing (km)")
+        ax_.set_xlabel("Easting (km)")
+        ax_.set_ylabel("Northing (km)")
         ax_.set_aspect("equal")
         cb_ = fig.colorbar(im_, ax=ax_, pad=0.02, fraction=0.046)
         cb_.set_label(label_)
@@ -293,7 +331,7 @@ def main():
         ax = fig.add_subplot(gs[0, 0])
         ax_ref = fig.add_subplot(gs[0, 1], sharex=ax, sharey=ax)
         ax_ts = fig.add_subplot(gs[1, :])
-        ref_map = rs(ref_mm_h.astype(np.float32))
+        ref_map = rs(ref_rate.astype(np.float32))
         lim_ref = max(float(np.nanpercentile(np.abs(ref_map), 98)), 0.1)
         map_panel(ax_ref, ref_map, lim_ref, ref_label, ref_title)
         ax_ref.set_ylabel("")

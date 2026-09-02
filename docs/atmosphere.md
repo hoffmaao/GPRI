@@ -46,80 +46,95 @@ no correction ever saw the scoring pixels.
 The accumulated ramp drift stage C removed was 15.95 N-units peak-to-peak over
 the 722 pairs.
 
-## Revision after the RGI audit (2026-08-31)
+## Revision after the RGI audit (2026-08-31, rescored 2026-09-02)
 
 The tables above were scored against a stable mask chosen by coherence alone —
 and the Randolph Glacier Inventory audit (`examples/baker_rgi.py`) later
 showed **62.8 % of that mask was on glacier**. Rescoring the 20170803 ladder
-with a true-rock reference and null (`--rgi`):
+with a true-rock reference and null (`--rgi`), on the campaign's measured
+scan heading (107.4°; the 105° the first RGI pass used put the mask 2.4° off
+its ground):
 
 | stage | ice-contaminated ref | RGI-corrected ref | RGI, lower antenna | 20170827 upper | 20170827 lower |
 |---|---:|---:|---:|---:|---:|
-| A reference only | 47.08 mm | **29.05 mm** | 30.53 mm | 36.87 mm | 38.37 mm |
-| B + pair screens | 49.22 mm | 34.26 mm | 35.63 mm | 44.85 mm | 42.33 mm |
-| C + drift removal | 46.83 mm | 33.82 mm | 34.54 mm | 44.71 mm | 42.22 mm |
-| D + turbulence | 30.05 mm | 28.18 mm | 29.31 mm | 39.53 mm | 37.94 mm |
+| A reference only | 47.08 mm | **27.14 mm** | 28.64 mm | 35.80 mm | 36.41 mm |
+| B + pair screens | 49.22 mm | 34.70 mm | 37.16 mm | 46.32 mm | 45.80 mm |
+| C + drift removal | 46.83 mm | 32.81 mm | 33.76 mm | 46.37 mm | 45.48 mm |
+| D + turbulence | 30.05 mm | 28.41 mm | 29.65 mm | 39.44 mm | 38.47 mm |
 
-The last column is the same day seen by the GPRI's second (lower) receive
+The third column is the same day seen by the GPRI's second (lower) receive
 antenna, formed from its SLCs with `gpri.stack.SlcPairStack` and run through
-the identical ladder (`--antenna lower`, 2026-09-01). It replicates the
-upper antenna's table stage for stage — same shape, same verdict on the
-per-pair screens — with a slightly larger held-out reference (4,822 px
-against 4,090; the lower antenna's coherence is marginally higher). The
-validated recipe without stage B (reference + drift removal + turbulence)
-scores 23.5 mm on the upper antenna's held-out rock and 23.7 mm on the
-lower's; of that, `examples/baker_antennas.py` measures 16.2 mm as
-single-antenna noise (RMS of upper − lower over √2) and 17.0 mm as
-common-mode error the two channels share.
+the identical ladder (`--antenna lower`). It replicates the upper antenna's
+table stage for stage — same shape, same verdict on the per-pair screens —
+with a slightly larger held-out reference (4,551 px against 3,816; the
+lower antenna's coherence is marginally higher). The validated recipe
+without stage B (reference + drift removal + turbulence) scores 23.3 mm on
+the upper antenna's held-out rock and 23.5 mm on the lower's; of that,
+`examples/baker_antennas.py` measures 16.7 mm as single-antenna noise (RMS
+of upper − lower over √2) and 16.2 mm as common-mode error the two channels
+share.
 
 The last two columns are the two-day campaign, `20170827` (44.9 h, 1334
-pairs, both antennas, 2026-09-01), scored the same way. The shape repeats a
-third and fourth time — B worse than A, D recovering most but not all of it
-— on a held-out rock set of 2,618 / 2,949 px (the campaign's coherence is
-lower, median 0.28 at 5×5 looks). Stage A at 36.9 mm over 44.9 h against
-29.1 mm over 24.2 h is the √t growth of single-look noise: 29.1 × √(44.9 /
-24.2) = 39.6 mm predicted, so the longer record adds no atmospheric error
-beyond what the extra epochs integrate.
+pairs, both antennas, heading 100.1°), scored the same way. The shape
+repeats a third and fourth time — B worse than A, D recovering most but not
+all of it — on a held-out rock set of 3,148 / 3,538 px (the campaign's
+coherence is lower, median 0.28 at 5×5 looks). Stage A at 35.8 mm over
+44.9 h against 27.1 mm over 24.2 h is the √t growth of single-look noise:
+27.1 × √(44.9 / 24.2) = 37.0 mm predicted, so the longer record adds no
+atmospheric error beyond what the extra epochs integrate.
 
-With `20170713_full` (the July archive refocused to its full 23.9 h, 270
-pairs, 2026-09-01) every processed campaign has now been scored the same way,
-on a true-rock reference, both antennas:
+Every processed campaign has now been scored the same way, on a true-rock
+reference at its measured heading, both antennas (`20170713_full` is the
+July archive refocused to its full 23.9 h; `20170913` and `20180709` are
+the two sub-cycle campaigns, the latter co-registered across a 5.1°
+tripod drift):
 
 | campaign | span | held-out px | A | B | C | D | D / A |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| `20170713_full` upper | 23.9 h | 3,437 | 24.29 mm | 24.10 | 24.07 | **21.51** | 88.5 % |
-| `20170713_full` lower | 23.9 h | 4,042 | 24.32 mm | 25.05 | 24.99 | **21.93** | 90.1 % |
-| `20170803` upper | 24.2 h | 4,090 | 29.05 mm | 34.26 | 33.82 | 28.18 | 97.0 % |
-| `20170803` lower | 24.2 h | 4,822 | 30.53 mm | 35.63 | 34.54 | 29.31 | 96.0 % |
-| `20170827` upper | 44.9 h | 2,618 | 36.87 mm | 44.85 | 44.71 | 39.53 | 107.2 % |
-| `20170827` lower | 44.9 h | 2,949 | 38.37 mm | 42.33 | 42.22 | 37.94 | 98.9 % |
+| `20170713_full` upper | 23.9 h | 3,022 | 21.59 mm | 24.00 | 23.98 | 22.22 | 102.9 % |
+| `20170713_full` lower | 23.9 h | 3,641 | 21.19 mm | 24.17 | 24.13 | 22.28 | 105.1 % |
+| `20170803` upper | 24.2 h | 3,816 | 27.14 mm | 34.70 | 32.81 | 28.41 | 104.7 % |
+| `20170803` lower | 24.2 h | 4,551 | 28.64 mm | 37.16 | 33.76 | 29.65 | 103.5 % |
+| `20170827` upper | 44.9 h | 3,148 | 35.80 mm | 46.32 | 46.37 | 39.44 | 110.2 % |
+| `20170827` lower | 44.9 h | 3,538 | 36.41 mm | 45.80 | 45.48 | 38.47 | 105.7 % |
+| `20170913` upper | 14.5 h | 3,751 | **9.06 mm** | 9.70 | 9.70 | 9.63 | 106.3 % |
+| `20170913` lower | 14.5 h | 4,186 | 10.97 mm | 11.35 | 11.35 | 11.29 | 103.0 % |
+| `20180709` upper | 6.9 h | 3,610 | 18.09 mm | 22.60 | 22.59 | 18.99 | 104.9 % |
+| `20180709` lower | 6.9 h | 4,081 | 18.73 mm | 22.43 | 22.41 | 19.52 | 104.2 % |
 
-July is the one campaign on which the ladder still earns its keep on true
-rock — the per-pair screens are neutral (99–103 % of A, against 118–122 %
-in August) and the turbulence screen takes 10–12 % off — and it is also the
-campaign with the largest held-out rock set and the lowest stage A. The
-three stage-A values are consistent with one noise level growing as √t
-from a lower July base (24.3 mm over 23.9 h; 29.1 over 24.2; 36.9 over
-44.9, where 29.1 × √(44.9 / 24.2) = 39.6).
+On true rock at the right heading the ladder gains nothing anywhere: stage
+D is 103–110 % of plain referencing on all ten rows, and the per-pair
+screens cost 3–30 %. (The 88–90 % July showed when it was first rescored
+was scored with a mask drawn at 105° instead of its measured 111.4° — 6.4°,
+560 m at 5 km — so its "held-out rock" was partly the wrong pixels; the
+gain went with the mask.) The two August campaigns are consistent with one
+noise level growing as √t (27.1 over 24.2 h; 35.8 over 44.9, where 27.1 ×
+√(44.9 / 24.2) = 37.0). The other three are not on that curve: July sits
+lower (21.6 over 23.9 h), the 2018 morning higher (18.1 over 6.9 h against
+14.5 predicted), and mid-September is the quietest atmosphere in the set
+by a factor of two — 9.1 mm over 14.5 h against 21 predicted, with a
+common-mode floor between the antennas of 2.6 mm against 10–16 mm on the
+summer days.
 
 Two of the conclusions below need correcting in the light of the audit:
 
 - **Referencing to actual rock is worth more than every correction
-  combined.** Plain stage A on a true-rock reference (29.1 mm) matches the
+  combined.** Plain stage A on a true-rock reference (27.1 mm) beats the
   old fully-corrected stage D (30.1 mm).
-- **The turbulence screen's 36 % gain was substantially an artefact of the
-  moving reference.** Fitted on a mask that was mostly ice, it partly learned
+- **The turbulence screen's 36 % gain was an artefact of the moving
+  reference.** Fitted on a mask that was mostly ice, it partly learned
   and subtracted spatially smooth *glacier motion* — which lowered "bedrock"
   RMS only because the held-out "bedrock" was the same moving ice. On true
-  rock its gain is ~3 %, further throttled because the genuine rock area
-  (4,090 px at this decimation) supports the kernel over only 6.9 % of the
-  grid. The method stands; the measured gain did not.
+  rock it does not gain at all, further throttled because the genuine rock
+  area (3,816 px at this decimation) supports the kernel over only 6.3 % of
+  the grid. The method stands; the measured gain did not.
 
 What survives unchanged: per-pair screens still do not pay for themselves
 (B > A in every configuration), the drift argument still holds, and the
 √t single-look noise floor is unchanged. The durable lesson is sharper,
 though: **get the reference right before correcting anything** — coherence
-is not stationarity, and no atmospheric model can fix a reference that moves.
+is not stationarity, no atmospheric model can fix a reference that moves,
+and a mask is only as good as the heading it is drawn at.
 
 ## What the numbers say
 
@@ -179,7 +194,11 @@ unidentifiable for a GPRI without a DEM: every pixel shares one antenna
 elevation angle, so beam height is exactly `alt + r·sin(elev)` — perfectly
 linear in slant range, and absorbed indistinguishably by the uniform-mixing
 ramp the matched filter already fits. Separating them requires per-pixel
-terrain height, and no DEM accompanies the data.
+terrain height. A DEM now does accompany the data — the Copernicus tile
+`gpri heading` measures the scan heading against — so the term is
+identifiable in principle. It has not been fitted, and the caveat that
+runs through the README stands until it is: rock sitting at the rock's
+heights cannot see a term that shows only on the higher, farther ice.
 
 ## Recommended pipeline
 

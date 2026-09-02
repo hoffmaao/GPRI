@@ -5,6 +5,14 @@
 #   bin/run_scene.sh 20170827            # both antennas, movies, closure
 #   bin/run_scene.sh 20170803 upper      # one antenna, no cross-antenna steps
 #
+# Two geometry steps come first.  `gpri coregister` measures every SLC's
+# azimuth offset against the last and, when the tripod turned during the
+# campaign (20180709), leaves the sidecar that reads the stack on one grid;
+# `gpri heading` measures the scan heading from the DEM at $GPRI_DEM (set it
+# in site.env) so the RGI masks and maps are rotated correctly.  Both are
+# skipped for a scene that has no slc/ of its own, e.g. GAMMA's diff0 for
+# 20170803, whose heading was measured separately.
+#
 # The first script for each antenna pays for reading the day (the decimated
 # stack is cached, so the rest take seconds to a few minutes); the two
 # antennas are independent and run side by side.  Closure comes last: the
@@ -45,9 +53,29 @@ chain() {  # chain <antenna>
     step movie_rate2h   py examples/baker_movie.py --scene "$scene" --rgi --rate-hours 2
     step movie_anommean py examples/baker_movie.py --scene "$scene" --rgi --anomaly mean
     step movie_anomtrend py examples/baker_movie.py --scene "$scene" --rgi --anomaly trend
+    step movie_anomperiodic py examples/baker_movie.py --scene "$scene" --rgi --anomaly periodic
   fi
 }
 
+# the two sidecars are measured once (a thousand SLCs over a network mount
+# is a quarter of an hour); GPRI_REDO_GEOMETRY=1 measures them again
+work="$GPRI_WORK_ROOT/$scene"
+if [ -d "${!var}/slc" ] && ! [ -d "${!var}/diff0" ]; then
+  if [ -f "$work/azimuth_offsets.json" ] && [ -z "${GPRI_REDO_GEOMETRY:-}" ]; then
+    echo "coregister: $work/azimuth_offsets.json exists, kept"
+  else
+    step coregister bin/gpri coregister "${!var}" --write \
+         --figure "docs/figures/03_coregister_$scene.png"
+  fi
+  if [ -f "$work/heading.json" ] && [ -z "${GPRI_REDO_GEOMETRY:-}" ]; then
+    echo "heading: $work/heading.json exists, kept"
+  elif [ -f "${GPRI_DEM:-}" ]; then
+    step heading bin/gpri heading "${!var}" --dem "$GPRI_DEM" --write \
+         --figure "docs/figures/02_heading_$scene.png"
+  else
+    echo "GPRI_DEM is not a file: heading not measured, maps use heading.json if present"
+  fi
+fi
 step info bin/gpri info "${!var}"
 pids=()
 for a in $antennas; do chain "$a" & pids+=($!); done

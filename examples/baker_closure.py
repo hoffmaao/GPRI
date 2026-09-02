@@ -180,8 +180,8 @@ def main():
     ax.plot(x * 60, y, "o-", ms=4, lw=1.1, color="C3")
     ax.axhline(0, color="0.6", lw=0.8, zorder=0)
     ax.set_xscale("log")
-    ax.set_xlabel("temporal baseline (minutes)")
-    ax.set_ylabel("closure bias (rad)")
+    ax.set_xlabel("Temporal baseline (min)")
+    ax.set_ylabel("Closure bias (rad)")
     what = (f"{day} {args.antenna}, lags {args.lags}" if args.lags
             else f"{day} merged network")
     ax.set_title(f"{what}: closure bias vs baseline\n"
@@ -191,7 +191,7 @@ def main():
         "right",
         functions=(lambda v: -par.wavelength / (4 * np.pi) * v * 1e3,
                    lambda d: -4 * np.pi / par.wavelength * d / 1e3))
-    sec.set_ylabel("mm LOS")
+    sec.set_ylabel("Closure bias (mm)")
     args.outdir.mkdir(parents=True, exist_ok=True)
     suffix = "" if not args.lags else \
         ("" if args.antenna == "upper" else f"_{args.antenna}")

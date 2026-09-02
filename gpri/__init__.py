@@ -26,6 +26,8 @@ Pipeline
 10b. :mod:`gpri.pairlsq`      single-step pair-domain WLS with uncertainties
 11. :mod:`gpri.diurnal`       harmonic analysis, and telling ice from atmosphere
 12. :mod:`gpri.geocode`       polar radar geometry to a local stereographic map
+12b. :mod:`gpri.heading`      the scan heading, measured from a DEM's shadows
+12c. :mod:`gpri.coregister`   azimuth offsets of a campaign whose tripod turned
 13. :mod:`gpri.plot`          figures, in radar and map geometry
 
 Sign convention
@@ -38,10 +40,10 @@ toward the radar** (a decrease in slant range).  See
 """
 from __future__ import annotations
 
-__version__ = "0.5.0"
+__version__ = "0.7.0"
 
 from . import (aps, atmosphere, closure, covariance, diurnal, focus, gamma,
-               geocode, glaciers,
+               coregister, geocode, glaciers, heading,
                network, pairlsq, phaselink, psinterp, refractivity, stack,
                timeseries)
 from .aps import epoch_screen_correction, invert_screens, turbulence_screen
@@ -50,6 +52,8 @@ from .diurnal import diurnal_amplitude, fit_harmonics, range_dependence
 from .focus import FocusOptions, focus as focus_raw, focus_campaign
 from .gamma import ParFile, read_image, read_slc, write_image
 from .geocode import RadarGeometry, geocode as geocode_image, local_stereographic
+from .heading import heading_from_dem, scene_heading
+from .coregister import scene_azimuth_offsets, shift_azimuth
 from .network import Network, read_itab, read_slc_tab
 from .pairlsq import fit_pairs
 from .phaselink import phase_link, temporal_coherence
@@ -61,7 +65,7 @@ from .timeseries import invert_network, los_displacement, stack_velocity
 __all__ = [
     "__version__",
     "aps", "atmosphere", "closure", "covariance", "diurnal", "focus", "gamma",
-    "geocode",
+    "coregister", "geocode", "heading",
     "network", "pairlsq", "phaselink", "psinterp", "refractivity", "stack",
     "timeseries",
     "ParFile", "read_image", "read_slc", "write_image",
@@ -78,6 +82,7 @@ __all__ = [
     "select_ps", "unwrap_with_ps",
     "invert_refractivity", "refractivity_of",
     "RadarGeometry", "geocode_image", "local_stereographic",
+    "heading_from_dem", "scene_heading", "scene_azimuth_offsets", "shift_azimuth",
 ]
 
 

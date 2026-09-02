@@ -174,3 +174,14 @@ def test_focus_campaign_writes_scene(tmp_path):
     from gpri.stack import SlcPairStack
     st = SlcPairStack.from_tab(scene / "SLCu_tab", lags=(1,))
     assert st.n_pairs == 2
+
+
+def test_position_override_replaces_an_unlocked_gps(tmp_path):
+    """20180709's raw_par records 0, 0: the surveyed position goes in instead."""
+    raw, par = write_raw(tmp_path, 100)
+    g = focus.geometry(par, raw, focus.baker_options(position=(48.82, -121.92, 1252.0)))
+    p = ParFile.loads(g.slc_par(2))
+    assert p.float("GPRI_ref_north") == pytest.approx(48.82)
+    assert p.float("GPRI_ref_east") == pytest.approx(-121.92)
+    assert p.float("GPRI_ref_alt") == pytest.approx(1252.0)
+    assert focus.RawPar.load(par).lat != pytest.approx(48.82)   # the raw_par is untouched

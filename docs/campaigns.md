@@ -21,7 +21,9 @@ campaign spans and whether it is processed far enough to use.
 | `20170713_full` | working | slc | 271 | 23.9 h | 5.0 min | 0.996 |
 | `20170713` | working | diff | 246 | 21.8 h | 5.0 min | 0.91 |
 | `20180709` | archive | raw | 213 | 17.9 h | 2.0 min | 0.75 |
+| `20180709` | working | slc | 197 (+6 set-up) | **6.9 h** | 2.0 min | 0.29 |
 | `20170913` | archive | raw | 437 | 14.5 h | 2.0 min | 0.61 |
+| `20170913` | working | slc | 437 | 14.5 h | 2.0 min | 0.61 |
 | `20160826` | archive | raw | 57 | 5.2 h | 5.0 min | 0.22 |
 | `20160826` | working (×2) | diff | 26+27 | 3.7 h | 5.0 min | 0.15 |
 
@@ -48,6 +50,12 @@ worth far more than one cycle for three reasons:
 1. A single cycle cannot cleanly separate the diurnal amplitude from the
    secular flow rate: in an epoch-domain fit the two are correlated at 0.78
    over one period and at 0.37 over 1.87. Two cycles break the degeneracy.
+   The same holds for a waveform that is not a sinusoid. The one estimate
+   of the secular rate that no 24 h-periodic shape can bias is the
+   difference between epochs exactly a day apart
+   (`gpri.diurnal.secular_slope`); on a 24.2 h record that is five pairs of
+   epochs at the two ends, on 44.9 h it is every epoch of the first 20.9 h
+   against its partner a day later.
 2. Two cycles let you check whether the diurnal **repeats**. A signal that
    recurs at the same phase on consecutive days is hard to explain as anything
    but a forced response; a one-off is not.
@@ -120,8 +128,48 @@ script measures closure on `20170803` from thousands of triangles.
    the coherent ice, and a night-time trough of a quarter the August depth
    at the same hours (`examples/baker_seasons.py`, README "Three campaigns
    on one clock").
-4. `20180709` (17.9 h) and `20170913` (14.5 h) fall short of a cycle even fully
-   processed. They are useful for secular velocity, not for diurnal phase.
+4. `20170913` (14.5 h) and `20180709` (6.9 h) fall short of a cycle even
+   fully processed. They are useful for rates, not for diurnal phase, and
+   the scripts fit rates on them (`MIN_CYCLES` in `gpri.diurnal` refuses the
+   harmonic). Both are focused (`gpri focus`) and run through the chain.
+   What focusing them showed:
+   - `20170913` was acquired on **2017-09-15** (05:57–20:29 UTC), not the
+     13th, on one geometry (446 lines from −27.96°).
+   - `20180709` holds 203 raw acquisitions on 2018-07-10, all of which
+     focus, but only 197 are a campaign: two 02:36 UTC scans on the 2017
+     geometry and four 12:08 scans sweeping −88° to +1° are set-up, and the
+     campaign proper runs 13:35–20:30 UTC from −42.96° — 6.9 h, not the
+     17.9 h between first and last file. `gpri focus` writes all 203;
+     the set-up scans are moved out of `slc/` (`slc_setup/`) and the tabs
+     regenerated before the chain runs. During its first 4.8 h the mount
+     turned 5.1° (`gpri coregister`, README "Did the tripod hold?"); the
+     recorded offsets put every epoch on the stable block's grid.
+5. `20160826`: 57 raw files, 26 of them truncated; 3.7 h processed by GAMMA
+   into both a single-reference and a chain network. Its value is the
+   closure triangles those two networks make, not anything sub-daily; the
+   raw adds nothing.
+
+## Scan headings
+
+`GPRI_scan_heading` is 0.0 in every parameter file. `gpri heading` measures
+it from the Copernicus DEM (`GPRI_DEM` in `site.env`; the tile
+`Copernicus_DSM_COG_10_N48_00_W122_00_DEM` from the public
+`copernicus-dem-30m` bucket covers the swath) and `bin/run_scene.sh` runs it
+before any map is drawn:
+
+| scene | heading (° true) | offset span (lines) | what the mount did |
+|---|---:|---:|---|
+| `20170713_full` | 111.38 | 0.44 (0.09°) | 0.08° clockwise through the night, back within an hour of sunrise |
+| `20170803` | 107.42 | — | GAMMA's diff0; not co-registered |
+| `20170827` | 100.13 | 0.26 (0.05°) | two 0.02° steps the first night, then a 0.03° daytime swing on both days |
+| `20170913` | 108.38 | 0.10 (0.02°) | a 0.015° step at sunrise |
+| `20180709` | 122.80 | 25.6 (5.1°) | 1°/h anticlockwise for 4.8 h, then held |
+
+The offsets are measured against the last SLC of the campaign
+(`gpri coregister --write` → `azimuth_offsets.json`, applied on read), so
+every campaign sits on the grid of its final acquisition. The sub-line
+2017 drifts are thermal — they keep the sun's hours — and are applied all
+the same; only 2018's needed to be.
 
 ## Practical notes
 

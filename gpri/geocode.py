@@ -25,8 +25,12 @@ Everything except one number:
 **``GPRI_scan_heading`` is 0.0 in every BakerBend1 parameter file** — it was
 never surveyed, and a scan heading of exactly zero would point the fan due
 north, at nothing.  So the absolute orientation is not in the data and has to
-be supplied.  Two ways to get it:
+be supplied.  Three ways to get it:
 
+* :func:`gpri.heading.heading_from_dem` (``gpri heading``) — the terrain's
+  shadows and facing slopes, simulated from a DEM and correlated with the
+  mean backscatter, fix it to 0.03 deg with no field survey and no tie point.
+  This is what the examples use, through :func:`gpri.heading.scene_heading`.
 * :func:`heading_from_tiepoint` — give it one identifiable feature (a summit,
   a nunatak, a rock rib) with known coordinates and the pixel it lands on, and
   it solves for the heading.
@@ -36,8 +40,11 @@ For the BakerBend1 north-side geometry, the radar at 48.82132 N, 121.92018 W,
 1252 m sees Baker's summit at bearing 122.5 deg and 9.2 km, Coleman Glacier at
 120.6 deg, Mazama at 107.4 deg and Colfax Peak at 129.9 deg.  The 79-degree
 fan (-27.96 to +51.05 deg) therefore needs a heading near **105 deg** to cover
-them; :data:`BAKERBEND1_HEADING` holds that as a starting guess.  It is a
-guess.  Tie it to a real feature before publishing a map from it.
+them; :data:`BAKERBEND1_HEADING` holds that as a starting guess.  The DEM
+says each campaign pointed its own way — 111.4 deg on 2017-07-13, 107.4 on
+08-03, 100.1 on 08-27, 108.4 on 09-15 and 122.8 in 2018 — so the guess is
+only a fallback for a scene that has not been measured, and
+:class:`RadarGeometry` built on it warns.
 
 Sign and datum conventions
 --------------------------
@@ -69,7 +76,8 @@ __all__ = [
 ]
 
 #: Starting-guess scan heading for the BakerBend1 north-side fan, degrees true.
-#: Derived from the bearings to the north-side glaciers, not from a survey.
+#: Derived from the bearings to the north-side glaciers, not from a survey;
+#: the measured headings (``gpri heading``) range from 100.1 to 122.8 deg.
 BAKERBEND1_HEADING = 105.0
 
 

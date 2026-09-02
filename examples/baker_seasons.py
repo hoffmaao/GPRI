@@ -4,8 +4,9 @@
     python examples/baker_seasons.py --scenes 20170713_full 20170803 20170827
 
 ``baker_population.py`` caches, per campaign and antenna, the median departure
-of the RGI ice from each pixel's own linear trend and the same series over the
-held-out bedrock that no correction ever saw.  This script overlays them
+of the RGI ice from its secular trend — the same-hour rate where the record
+is longer than a day, each pixel's linear fit where it is not — and the same
+series over the held-out bedrock that no correction ever saw.  This script overlays them
 against the UTC hour of day — one trace per calendar day, so a two-day
 campaign contributes two — and asks the only question a handful of days can
 answer: does the *timing* repeat?  Amplitudes are free to differ (melt
@@ -37,7 +38,7 @@ from baker_aps import SCENES                                        # noqa: E402
 from baker_population import population_path                        # noqa: E402
 
 
-def load_days(scene: Path, antenna: str, dec: int):
+def load_days(scene: Path, antenna: str, dec: int, detrend: str = "auto"):
     """One record per UTC calendar day: (date, hour-of-day, ice, rock)."""
     npz = population_path(scene, antenna, dec)
     if not npz.exists():
@@ -47,11 +48,16 @@ def load_days(scene: Path, antenna: str, dec: int):
     t = z["epoch0"].astype("datetime64[s]") + (z["hours"] * 3600).astype("timedelta64[s]")
     date = t.astype("datetime64[D]")
     hod = (t - date).astype(float) / 3600.0
+    ice, rock = (z["ice"], z["rock"]) if detrend == "auto" else \
+        (z["ice_linear"], z["rock_linear"])
     days = []
     for d in np.unique(date):
         m = date == d
-        days.append((str(d), hod[m], z["ice"][m], z["rock"][m]))
-    return days, float(z["ice_rate"]), float(z["rock_rate"])
+        days.append((str(d), hod[m], ice[m], rock[m]))
+    how = str(z["detrend"]) if detrend == "auto" else "linear"
+    rates = ("ice_rate", "rock_rate") if how != "linear" else \
+        ("ice_rate_linear", "rock_rate_linear")
+    return days, float(z[rates[0]]), float(z[rates[1]]), how
 
 
 def hourly(hod, y):
@@ -80,6 +86,10 @@ def main():
     ap.add_argument("--decimate", type=int, default=16)
     ap.add_argument("--overlap", type=float, default=12.0,
                     help="hours two days must share before they are correlated")
+    ap.add_argument("--detrend", default="auto", choices=("auto", "linear"),
+                    help="'auto' takes each campaign's best line (same-hour "
+                         "rate where the record allows it); 'linear' the "
+                         "per-pixel least-squares line everywhere")
     ap.add_argument("--outdir", type=Path, default=Path("docs/figures"))
     args = ap.parse_args()
 
@@ -88,10 +98,11 @@ def main():
     palette = plt.rcParams["axes.prop_cycle"].by_key()["color"]
     for i, name in enumerate(args.scenes):
         scene = Path(SCENES.get(name, name))
-        recs, ice_rate, rock_rate = load_days(scene, args.antenna, args.decimate)
+        recs, ice_rate, rock_rate, how = load_days(scene, args.antenna,
+                                                   args.decimate, args.detrend)
         colours[name] = palette[i % len(palette)]
-        print(f"{name}: {len(recs)} UTC day(s), median LOS rate ice "
-              f"{ice_rate:+.2f} mm/hr, held-out bedrock {rock_rate:+.2f} mm/hr")
+        print(f"{name}: {len(recs)} UTC day(s), {how} detrend, median LOS rate "
+              f"ice {ice_rate:+.2f} m/yr, held-out bedrock {rock_rate:+.2f} m/yr")
         for date, hod, ice, rock in recs:
             if hod[-1] - hod[0] < 2:
                 continue                       # a few epochs past midnight
@@ -148,8 +159,8 @@ def main():
         ax.grid(axis="x", color="0.85", lw=0.5)
         ax.axvspan(3.5, 13.0, color="0.93", zorder=0)   # sunset to sunrise, PDT
     axes[0].set_ylabel("Ice anomaly (mm)")
-    axes[0].set_title(f"RGI ice: median departure from each pixel's linear trend, "
-                      f"every processed day on one UTC clock ({args.antenna} antenna; "
+    axes[0].set_title(f"RGI ice: median departure from its secular trend, every "
+                      f"processed day on one UTC clock ({args.antenna} antenna; "
                       f"shading: local night)", fontsize=10)
     axes[0].legend(loc="lower left", fontsize=8, ncol=3)
     axes[1].set_ylabel("Rock anomaly (mm)")
@@ -157,7 +168,8 @@ def main():
     axes[1].set_xlabel("UTC (hr)")
     plt.tight_layout()
     args.outdir.mkdir(parents=True, exist_ok=True)
-    tag = "" if args.antenna == "upper" else f"_{args.antenna}"
+    tag = ("" if args.antenna == "upper" else f"_{args.antenna}") + \
+        ("" if args.detrend == "auto" else "_linear")
     out = args.outdir / f"20_seasons{tag}.png"
     plt.savefig(out, dpi=140)
     plt.close()
