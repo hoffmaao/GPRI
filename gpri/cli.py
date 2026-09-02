@@ -52,10 +52,12 @@ def _open(args):
     lags = tuple(getattr(args, "lags", None) or ())
     looks = tuple(getattr(args, "looks_pairs", None) or (1, 1))
     tab = scene / args.slc_tab
-    if antenna != "upper" or lags or looks != (1, 1):
+    diff = scene / args.diff_dir
+    if antenna != "upper" or lags or looks != (1, 1) or not diff.is_dir():
         # Pairs formed from the SLCs: the lower antenna, a lag network with
-        # closed triangles, or multilooked products -- none of which GAMMA
-        # wrote to diff0.  See gpri.stack.SlcPairStack.
+        # closed triangles, multilooked products -- none of which GAMMA
+        # wrote to diff0 -- or a scene focused by `gpri focus`, which has no
+        # diff0 at all.  See gpri.stack.SlcPairStack.
         lags = lags or (1,)
         letter = antenna[0].lower()
         if letter == "u" and tab.exists():
@@ -71,9 +73,6 @@ def _open(args):
             st.network = Network(st.network.epochs, st.network.pairs[keep])
             st._pairs = [st._pairs[k] for k in keep]
         return st
-    diff = scene / args.diff_dir
-    if not diff.is_dir():
-        raise SystemExit(f"no interferogram directory at {diff}")
     st = DiffStack.from_directory(diff, slc_tab=tab if tab.exists() else None,
                                   suffix=args.suffix)
     if args.max_pairs and st.n_pairs > args.max_pairs:
@@ -471,11 +470,15 @@ def cmd_focus(args):
     opts = FocusOptions(dec=args.dec, zero=args.zero, rmin=args.rmin,
                         rmax=args.rmax, kbeta=args.kbeta, heading=args.heading,
                         ati=args.ati)
-    print(f"campaign  {args.campaign}")
-    print(f"options   {opts}")
+    # a run is an hour or more, usually under nohup: keep the log current
+    def log(*a):
+        print(*a, flush=True)
+
+    log(f"campaign  {args.campaign}")
+    log(f"options   {opts}")
     focus_campaign(args.campaign, args.scene, opts, workers=args.workers,
                    overwrite=args.overwrite, limit=args.limit,
-                   raw_list=args.raw_list)
+                   raw_list=args.raw_list, log=log)
     return 0
 
 

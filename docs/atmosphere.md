@@ -53,12 +53,12 @@ and the Randolph Glacier Inventory audit (`examples/baker_rgi.py`) later
 showed **62.8 % of that mask was on glacier**. Rescoring the 20170803 ladder
 with a true-rock reference and null (`--rgi`):
 
-| stage | ice-contaminated ref | RGI-corrected ref | RGI, lower antenna |
-|---|---:|---:|---:|
-| A reference only | 47.08 mm | **29.05 mm** | 30.53 mm |
-| B + pair screens | 49.22 mm | 34.26 mm | 35.63 mm |
-| C + drift removal | 46.83 mm | 33.82 mm | 34.54 mm |
-| D + turbulence | 30.05 mm | 28.18 mm | 29.31 mm |
+| stage | ice-contaminated ref | RGI-corrected ref | RGI, lower antenna | 20170827 upper | 20170827 lower |
+|---|---:|---:|---:|---:|---:|
+| A reference only | 47.08 mm | **29.05 mm** | 30.53 mm | 36.87 mm | 38.37 mm |
+| B + pair screens | 49.22 mm | 34.26 mm | 35.63 mm | 44.85 mm | 42.33 mm |
+| C + drift removal | 46.83 mm | 33.82 mm | 34.54 mm | 44.71 mm | 42.22 mm |
+| D + turbulence | 30.05 mm | 28.18 mm | 29.31 mm | 39.53 mm | 37.94 mm |
 
 The last column is the same day seen by the GPRI's second (lower) receive
 antenna, formed from its SLCs with `gpri.stack.SlcPairStack` and run through
@@ -72,7 +72,37 @@ lower's; of that, `examples/baker_antennas.py` measures 16.2 mm as
 single-antenna noise (RMS of upper − lower over √2) and 17.0 mm as
 common-mode error the two channels share.
 
-Two of the conclusions below need correcting in its light:
+The last two columns are the two-day campaign, `20170827` (44.9 h, 1334
+pairs, both antennas, 2026-09-01), scored the same way. The shape repeats a
+third and fourth time — B worse than A, D recovering most but not all of it
+— on a held-out rock set of 2,618 / 2,949 px (the campaign's coherence is
+lower, median 0.28 at 5×5 looks). Stage A at 36.9 mm over 44.9 h against
+29.1 mm over 24.2 h is the √t growth of single-look noise: 29.1 × √(44.9 /
+24.2) = 39.6 mm predicted, so the longer record adds no atmospheric error
+beyond what the extra epochs integrate.
+
+With `20170713_full` (the July archive refocused to its full 23.9 h, 270
+pairs, 2026-09-01) every processed campaign has now been scored the same way,
+on a true-rock reference, both antennas:
+
+| campaign | span | held-out px | A | B | C | D | D / A |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `20170713_full` upper | 23.9 h | 3,437 | 24.29 mm | 24.10 | 24.07 | **21.51** | 88.5 % |
+| `20170713_full` lower | 23.9 h | 4,042 | 24.32 mm | 25.05 | 24.99 | **21.93** | 90.1 % |
+| `20170803` upper | 24.2 h | 4,090 | 29.05 mm | 34.26 | 33.82 | 28.18 | 97.0 % |
+| `20170803` lower | 24.2 h | 4,822 | 30.53 mm | 35.63 | 34.54 | 29.31 | 96.0 % |
+| `20170827` upper | 44.9 h | 2,618 | 36.87 mm | 44.85 | 44.71 | 39.53 | 107.2 % |
+| `20170827` lower | 44.9 h | 2,949 | 38.37 mm | 42.33 | 42.22 | 37.94 | 98.9 % |
+
+July is the one campaign on which the ladder still earns its keep on true
+rock — the per-pair screens are neutral (99–103 % of A, against 118–122 %
+in August) and the turbulence screen takes 10–12 % off — and it is also the
+campaign with the largest held-out rock set and the lowest stage A. The
+three stage-A values are consistent with one noise level growing as √t
+from a lower July base (24.3 mm over 23.9 h; 29.1 over 24.2; 36.9 over
+44.9, where 29.1 × √(44.9 / 24.2) = 39.6).
+
+Two of the conclusions below need correcting in the light of the audit:
 
 - **Referencing to actual rock is worth more than every correction
   combined.** Plain stage A on a true-rock reference (29.1 mm) matches the

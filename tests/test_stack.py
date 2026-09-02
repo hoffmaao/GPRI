@@ -264,7 +264,7 @@ def test_slc_pairs_walk_patches(slc_scene):
 
 
 def test_cli_opens_slc_formed_stacks(slc_scene, capsys):
-    """`gpri info --antenna lower` and `--lags 1 2` work without a diff0."""
+    """`gpri info` and its --antenna / --lags variants work without a diff0."""
     from gpri.cli import build_parser, _open
     p = build_parser()
     args = p.parse_args(["info", str(slc_scene), "--antenna", "lower"])
@@ -276,10 +276,11 @@ def test_cli_opens_slc_formed_stacks(slc_scene, capsys):
     st = _open(args)
     assert st.n_pairs == 4 and st.shape == (4, 10)
     assert list(map(tuple, st.network.pairs)) == [(0, 1), (0, 2), (1, 2), (1, 3)]
-    # no diff0 here: the default path must say so rather than crash
-    import pytest as _pt
-    with _pt.raises(SystemExit):
-        _open(p.parse_args(["info", str(slc_scene)]))
+    # no diff0 here (a scene focused by `gpri focus`): the default path forms
+    # the lag-1 pairs from the upper SLCs instead of failing
+    st = _open(p.parse_args(["info", str(slc_scene)]))
+    assert isinstance(st, SlcPairStack) and st.n_pairs == 3
+    assert st.images[0].name.endswith("u.slc")
 
 
 def test_slc_pairs_crop_a_widened_sweep(slc_scene):
@@ -311,3 +312,17 @@ def test_slc_pairs_crop_a_widened_sweep(slc_scene):
         f.write(b"\0" * 4)
     with pytest.raises(ValueError, match="whole number"):
         SlcPairStack.from_tab(slc_scene / "SLCu_tab")
+
+
+def test_slc_pairs_mean_intensity_is_a_backdrop(slc_scene):
+    """Mean |s|^2 over a spread of epochs, for scenes GAMMA never multilooked."""
+    from gpri.gamma import read_image
+    st = SlcPairStack.from_tab(slc_scene / "SLCu_tab")
+    every = np.mean([np.abs(read_image(slc_scene / "slc" / f"{i}.slc", shape=BIG,
+                                       image_format="FCOMPLEX")) ** 2 for i in IDS], axis=0)
+    got = st.mean_intensity()
+    assert got.shape == BIG and got.dtype == np.float32
+    np.testing.assert_allclose(got, every, rtol=1e-5)
+    two = st.mean_intensity(max_epochs=2)                   # first and last
+    first_last = np.mean([np.abs(st.read_slc(e)) ** 2 for e in (0, st.n_epochs - 1)], axis=0)
+    np.testing.assert_allclose(two, first_last, rtol=1e-5)

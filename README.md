@@ -233,6 +233,7 @@ cold storage (`bin/survey_campaigns.py` regenerates it). The short version:
 |---|---|---:|---:|
 | `20170827` | raw → **slc** (`gpri focus`) | **44.9 h** | **1.87** |
 | `20170803` | diff | 24.1 h | 1.01 |
+| `20170713_full` | raw → slc (`gpri focus`) | 23.9 h | 0.996 |
 | `20170713` | diff | 21.8 h | 0.91 |
 
 **`20170827` is the dataset the experiment deserves** — 44.9 hours, 1335
@@ -246,10 +247,161 @@ common leading block, which starts at the same azimuth), and there are two
 gaps in the cadence, 19 minutes at that geometry change and 8 minutes a day
 later. `20170803` — one cycle, processed by GAMMA — remains the default scene.
 
+`20170713` as GAMMA shipped it stops at 21.8 h, and the harmonic fits refuse
+it — over 0.91 of a cycle amplitude and rate are not separable. Its raw
+archive runs to 23.9 h (271 acquisitions at 5-minute cadence), five minutes
+short of a day, and `gpri focus` writes that as the `20170713_full` scene.
+The fits accept it: `MIN_CYCLES = 0.98` in `gpri.diurnal`, because the
+rate/harmonic correlation has no cliff at exactly one period (0.78 at 1.00
+cycles, 0.80 at 0.98, against 0.87 at 0.75 and 0.99 at half a cycle for an
+epoch-domain fit; near zero either side of one cycle in the pair domain).
+
+### Two days: does the diurnal repeat?
+
+`20170827` is now focused and run through the whole chain (`bin/run_scene.sh
+20170827`: aps ladder, RGI audit, pair-domain fit, repeat test, four movies,
+two-antenna replicate and closure, both antennas, about two hours after the
+88-minute focus). The RGI audit drops 77 % of the coherence-only reference as
+glacier (17,853 of 23,094 px); the campaign's coherence is lower than
+20170803's (median 0.28 at 5×5 looks), so the true-rock reference is 5,241
+px against 8,180. On that reference the atmospheric ladder repeats its
+20170803 shape a third and fourth time — per-pair screens hurt (B 122 % of
+A), turbulence recovers most of it (D 107 %), and plain referencing at 36.9
+mm over 44.9 h is what 20170803's 29.1 mm over 24.2 h becomes under √t
+growth (39.6 mm predicted) — see
+[`docs/atmosphere.md`](docs/atmosphere.md).
+
+The pair-domain fit over both days (`15_pairlsq_20170827.png`) is weaker
+than 20170803's: ice median amplitude 11.2 mm against held-out rock 6.2 mm
+(ratio 1.8), 2.3 % of ice above SNR 3 against a 1.0 % false-alarm rate. The
+two antennas replicate each other (11.2 / 11.1 mm; 102 ice pixels pass SNR 3
+in both, 6× chance, peak times within 2 h for 83 % of them; 0.08 % of rock
+survives the same test — `17_antennas_20170827.png`) and the measured noise
+floor is 21.5 mm single-antenna against 23.0 mm common-mode. Per pixel,
+then, a two-day daisy chain at single look does not detect the diurnal any
+better than one day did. The question the second day was bought for is
+answered at the population level instead.
+
+**`examples/baker_repeat.py`** fits the same corrected observations three
+times — pairs inside the first 24 h, inside the last 24 h, and all of them —
+and compares the mean of the per-pixel phasors `a + ib` over all RGI ice
+with the same mean over held-out bedrock
+([`18_repeat_20170827.png`](docs/figures/18_repeat_20170827.png)):
+
+| fit | ice mean phasor | peak (UTC) | held-out bedrock | ice / rock |
+|---|---:|---:|---:|---:|
+| day 1 | 4.5 mm | 02:00 | 0.11 mm | 40 |
+| day 2 | 11.0 mm | 20:24 | 0.91 mm | 12 |
+| both | 6.3 mm | 21:48 | 0.34 mm | 18 |
+
+The lower antenna gives 4.5 / 10.8 / 6.1 mm at the same hours. The glacier
+population has a diurnal term on both days that the bedrock population does
+not; but it is 2.5× larger on the second day and peaks 5.6 h earlier, and
+the two days' phasor maps correlate at only 0.23 across the ice — no more
+than the 0.25 that the bedrock's residuals manage. Read as a harmonic, the
+signal does not repeat.
+
+**`examples/baker_population.py`** shows why the harmonic is the wrong
+basis. It plots the median of every pixel's departure from its own linear
+trend, over the ice and over held-out rock, against a UTC clock
+([`19_population_20170827.png`](docs/figures/19_population_20170827.png)).
+The ice median is a **night-time trough with a sharp morning recovery** on
+both days: behind trend from about 05 UTC (22:00 PDT), lowest at 08–13 UTC,
+back above trend by 15 UTC (08:00 PDT), highest at 02–03 UTC (19:00–20:00
+PDT). The trough is −9 mm on the first night and −20 mm on the second, and
+the second morning's rise is a step of some 25 mm in two hours — which a
+24 h sinusoid can only render as a larger amplitude at an earlier phase,
+exactly what the table above reports. Over the same 45 hours the held-out
+bedrock median stays within ±1.5 mm (RMS 0.6 mm against the ice's 7.5 mm,
+correlation −0.23); the median ice rate is 1.2 mm/h LOS, the rock's 0.02.
+
+So the timing repeats — the trough and the morning recovery fall at the
+same hours on consecutive days — while the amplitude does not, and the
+waveform is nothing like a sinusoid. That is what a melt-forced response
+looks like (input stops at dusk, the system drains overnight, the morning
+speed-up comes with the sun), and it is not what a residual atmosphere on
+the control looks like. The caveat is the one attached to every ice result
+here: the control is rock that sits at the ranges and heights where rock
+is, and the corrections are extrapolated from there onto ice that is higher
+and farther, so a stratified atmospheric term the rock cannot see is not
+excluded by the rock being flat. The two antennas cannot help with that —
+they share the atmosphere — and the next real control is meteorology.
+
+### Three campaigns on one clock
+
+`20170713_full` — the July archive refocused to its full 23.9 h — goes
+through the same chain (`bin/run_scene.sh 20170713_full`, 271 epochs at
+5-minute cadence, both antennas, half an hour end to end). Its numbers sit
+beside the two August campaigns':
+
+| | `20170713_full` | `20170803` | `20170827` |
+|---|---:|---:|---:|
+| span, pairs, cadence | 23.9 h, 270, 5 min | 24.2 h, 722, 2 min | 44.9 h, 1334, 2 min |
+| coherence-only reference on glacier (RGI) | 48 % | 62 % | 77 % |
+| held-out rock (px) | 3,437 | 4,090 | 2,618 |
+| ladder A → D, held-out rock | 24.3 → **21.5 mm** (88 %) | 29.1 → 28.2 mm (97 %) | 36.9 → 39.5 mm (107 %) |
+| pair-domain diurnal, ice / rock | 10.2 / 6.8 mm (1.5) | 16.6 / 6.9 mm (2.4) | 11.2 / 6.2 mm (1.8) |
+| ice above SNR 3 / rock false alarms | 1.6 % / 1.0 % | 7.7 % / 0.8 % | 2.3 % / 1.0 % |
+| SNR 3 in both antennas, ice / rock | 0.3 % / 0.35 % | 1.9 % / 0.07 % | 0.3 % / 0.08 % |
+| single-antenna noise / common-mode, rock | 12.8 / 14.1 mm | 16.2 / 17.0 mm | 21.5 / 23.0 mm |
+| median LOS rate, ice / rock | −0.5 / +0.04 mm/h | +1.5 / −0.03 mm/h | +1.2 / −0.02 mm/h |
+| trend-anomaly RMS, ice / rock | 2.7 / 0.3 mm | 8.2 / 0.7 mm | 7.5 / 0.6 mm |
+
+July is the quiet one on every line. The ladder is the only one of the three
+that gains on true rock (turbulence takes 12 % off, the per-pair screens are
+neutral); the per-pixel diurnal is a null — the ice/rock ratio is 1.5, and
+the replication test that on 20170827 keeps 0.08 % of rock keeps 0.35 % in
+July, the same rate as the ice's 0.3 %; and the coherent ice population has
+no net line-of-sight motion (median −0.5 mm/h, 10th–90th percentiles −2.9 to
++2.0 mm/h, against −2.5 to +8.6 on 20170803, with the rock's own spread ±0.9
+on both days). Whether that is a glacier that moves less in July or a July
+in which the coherent "ice" pixels are a different, more marginal set — the
+coherence-only reference is 48 % glacier in July and 77 % in late August, so
+the ice that holds coherence changes with the season — the single-look data
+cannot say.
+
+**`examples/baker_seasons.py`** puts what the population series *do* share
+on one figure: every processed UTC day, ice median departure from trend
+against the hour, with the held-out bedrock underneath
+([`20_seasons.png`](docs/figures/20_seasons.png)):
+
+| UTC day | span | trough | depth | back above trend | rock RMS |
+|---|---:|---:|---:|---:|---:|
+| 2017-07-14 | 00:18–19:42 | 06:48 | −5.6 mm | 09:12 | 0.29 mm |
+| 2017-08-04 | 00:00–22:30 | 11:36 | −16.8 mm | 13:06 | 0.68 mm |
+| 2017-08-28 | 00:00–24:00 | 14:06 | −10.5 mm | 15:12 | 0.67 mm |
+| 2017-08-29 | 00:00–20:42 | 08:12 | −21.3 mm | 13:00 | 0.46 mm |
+
+Hourly-binned, the ice medians of 07-14, 08-04 and 08-29 correlate at
+**0.72, 0.70 and 0.78** with each other — three days six weeks apart, in
+two campaigns focused from raw, with the same night-time trough (falling
+behind trend from 04–05 UTC, 21:00–22:00 PDT, deepest 06–12 UTC, back above
+trend by 09–13 UTC) — and 08-28 correlates with none of them (−0.08, 0.04,
+0.02): its night is flat and its trough comes at 12–15 UTC, after sunrise.
+The bedrock's hourly medians correlate between the same days at −0.61 to
++0.33 with no pattern, and the lower antenna reproduces every entry (0.69 /
+0.67 / 0.80; −0.15 / 0.05 / 0.02). So the timing repeats on three days of
+four, the amplitude does not repeat at all (−5.6 to −21 mm), and the one
+day that breaks the pattern is the first of the two-day campaign, whose
+anomaly is measured against a 45 h trend that the second day's larger
+swing helps set.
+
+Two things in the rock panel deserve stating. On 08-04 the bedrock median is
+a mirror image of the ice at one-fifteenth the scale (correlation −0.90
+over the day; +1 mm while the ice is at −15, −2 mm in the last hour while
+the ice climbs 20 mm) — the signature of a correction whose residual has
+opposite sign on rock and on the higher, farther ice, and a reason to
+distrust that day's amplitude more than its hours. On the other days the
+correlation is −0.23, +0.09 and +0.12, and the rock stays within ±1.2 mm
+throughout. The night-time trough is the most repeatable thing this data
+set has produced; what it is made of — ice, or an atmosphere stratified in
+a way rock at rock heights cannot register — is the question the next
+campaign has to be designed to answer, with meteorology on the glacier.
+
 ### Movies of the deformation field
 
 `examples/baker_movie.py` renders the corrected LOS field as an MP4 in the
-map frame — backscatter backdrop, real UTC clock, both processed days:
+map frame — backscatter backdrop, real UTC clock, every processed campaign:
 
 - [`14_los_movie_20170803.mp4`](docs/figures/14_los_movie_20170803.mp4) —
   cumulative displacement through the 24.2 h day (723 frames, 30 s)
@@ -267,6 +419,19 @@ map frame — backscatter backdrop, real UTC clock, both processed days:
   and a time strip with the median anomaly over the moving pixels, its
   interquartile band, and a cursor at the current frame. Same two views for
   `20170713`.
+- the same four for `20170827`
+  ([cumulative](docs/figures/14_los_movie_20170827.mp4),
+  [2 h rate](docs/figures/14_los_movie_rate2h_20170827.mp4),
+  [mean anomaly](docs/figures/14_los_movie_anommean_20170827.mp4),
+  [trend anomaly](docs/figures/14_los_movie_anomtrend_20170827.mp4)) —
+  1335 frames over 44.9 h; the anomaly views' time strip is where the
+  night-time trough of the section above is easiest to see.
+- and for `20170713_full`
+  ([cumulative](docs/figures/14_los_movie_20170713_full.mp4),
+  [2 h rate](docs/figures/14_los_movie_rate2h_20170713_full.mp4),
+  [mean anomaly](docs/figures/14_los_movie_anommean_20170713_full.mp4),
+  [trend anomaly](docs/figures/14_los_movie_anomtrend_20170713_full.mp4)),
+  271 frames at 5-minute cadence.
 
 Corrections are the validated recipe (reference + drift removal + turbulence,
 no per-pair screens), referenced to **true rock** — coherent pixels outside
@@ -369,7 +534,11 @@ before correction) and the fitted `b(dt)` removes **none of it** — 0.953 and
 1.097 rad after, a 0 % reduction. That closure is dominated by decorrelation
 noise, not by a systematic short-baseline bias — and since the fitted bias
 is velocity-blind by construction, there is nothing here for a closure
-correction to change in the displacement chain, which applies none.
+correction to change in the displacement chain, which applies none. The
+two campaigns focused from raw say the same: *i*→*i*+1..3 on `20170827`
+gives 3997 triangles at 0.997 rad closure rms, 0.996 after the fit;
+`20170713_full` gives 805 at 0.983 → 0.969 rad (a 1 % reduction). Four
+days, ~1 rad everywhere, nothing for `b(dt)` to take out.
 
 ### Methods after Ann Chen
 
@@ -469,10 +638,17 @@ python examples/baker_movie.py --scene 20170803 --rgi --anomaly trend
 python examples/baker_antennas.py --scene 20170803 --decimate 16 --rgi
 # closure on the day the analysis uses: pairs formed from the SLCs
 python examples/baker_closure.py --scene 20170803 --lags 1 2 3 30 60 90 180 360 --looks 3 15
-# the two-day campaign, once `gpri focus` has written it: same scripts, --scene 20170827
-python examples/baker_aps.py --scene 20170827 --decimate 16 --sigma 5 25 --rgi --screens-on-bedrock
-python examples/baker_movie.py --scene 20170827 --rgi --anomaly mean
+# the two-day campaign, once `gpri focus` has written it: same scripts, --scene 20170827,
+# plus the test only two cycles can make -- does the diurnal repeat?
+python examples/baker_repeat.py --scene 20170827 --decimate 16 --rgi
+python examples/baker_population.py --scene 20170827 --decimate 16 --rgi
+# every processed day on one UTC clock (needs baker_population.py run per scene)
+python examples/baker_seasons.py --scenes 20170713_full 20170803 20170827
 ```
+
+`bin/run_scene.sh <scene> [upper|lower|both]` runs that whole chain for one
+scene, both antennas side by side, logging each step under
+`$GPRI_WORK_ROOT/<scene>/logs/`.
 
 ## The scan heading is not in the data
 
@@ -546,6 +722,14 @@ distribution has no `par_GPRI2_SLC`: GPRI raw processing is the Python 2
 script `GPRI2-2/trunk/python/gpri2_proc.py`, which is what `gpri/focus.py`
 ports (the geometry, squint correction, Kaiser window, range scaling and
 `.slc.par` writer are the same, line for line, in Python 3 and numpy).
+
+With GAMMA on the path, `bin/smoke_test.sh` runs its ISP chain
+(`create_offset → SLC_intf → multi_look → cc_wave → rasmph_pwr`) on the first
+pair of a scene. On SLCs focused by `gpri focus` the products agree with
+`SlcPairStack` exactly as GAMMA's own archive did: interferogram phase to
+2e-7 rad, 5 × 5 coherence at correlation 0.998. One thing that test taught:
+`SLC_intf`'s azimuth common-band filter must be **off** for GPRI — with it on,
+the phase of a rotating-antenna pair is scrambled to noise (rms 1.6 rad).
 
 ## License
 

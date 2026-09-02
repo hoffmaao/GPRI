@@ -13,10 +13,12 @@ campaign spans and whether it is processed far enough to use.
 
 | campaign | copy | stage | acquisitions | span | cadence | cycles |
 |---|---|---|---:|---:|---:|---:|
-| `20170827` | archive | **raw** | 1340 | **44.9 h** | 2.0 min | **1.87** |
+| `20170827` | archive | **raw** | 1335 | **44.9 h** | 2.0 min | **1.87** |
+| `20170827` | working | **slc** | 1335 | 44.9 h | 2.0 min | 1.87 |
 | `20170803` | archive | slc | 723 | 24.2 h | 2.0 min | 1.01 |
 | `20170803` | working (×3) | **diff** | 722 | 24.1 h | 2.0 min | 1.01 |
-| `20170713` | archive | raw | 279 | 24.0 h | 5.0 min | 1.00 |
+| `20170713` | archive | raw | 271 | 23.9 h | 5.0 min | 0.996 |
+| `20170713_full` | working | slc | 271 | 23.9 h | 5.0 min | 0.996 |
 | `20170713` | working | diff | 246 | 21.8 h | 5.0 min | 0.91 |
 | `20180709` | archive | raw | 213 | 17.9 h | 2.0 min | 0.75 |
 | `20170913` | archive | raw | 437 | 14.5 h | 2.0 min | 0.61 |
@@ -44,8 +46,8 @@ hours — 1.87 diurnal cycles, 1335 acquisitions at 2-minute cadence — which i
 worth far more than one cycle for three reasons:
 
 1. A single cycle cannot cleanly separate the diurnal amplitude from the
-   secular flow rate; they are nearly degenerate over exactly one period. Two
-   cycles break that degeneracy.
+   secular flow rate: in an epoch-domain fit the two are correlated at 0.78
+   over one period and at 0.37 over 1.87. Two cycles break the degeneracy.
 2. Two cycles let you check whether the diurnal **repeats**. A signal that
    recurs at the same phase on consecutive days is hard to explain as anything
    but a forced response; a one-off is not.
@@ -76,23 +78,27 @@ holds, which the archive's own `RAW_list` (44 entries) does not say:
 - 219 of the `raw_par` files carry no GPS fix; the radar position for
   geocoding comes from the first acquisition, which does.
 
-**What is usable today** is `20170803`: 24.1 h at 2-minute cadence, processed
-to interferograms, and the default scene for this repository. One cycle
-exactly — enough to fit a diurnal harmonic (`gpri.diurnal` refuses anything
-shorter) but not enough to check that it repeats, and marginal for separating
-amplitude from secular rate. Its SLCs cover **both receive antennas**, which
+`20170803` is the scene GAMMA shipped processed: 24.1 h at 2-minute cadence,
+interferograms formed, and the default scene for this repository. One cycle
+exactly — enough to fit a diurnal harmonic but not enough to check that it
+repeats, and marginal for separating amplitude from secular rate. Its SLCs cover **both receive antennas**, which
 gives the one replicate the campaign has: the lower antenna, formed by
 `SlcPairStack`, run through the identical chain (`examples/baker_antennas.py`
 — the noise floor and the replication test in the README). The same SLCs
 supply the *i*→*i*+2, *i*→*i*+3 (and longer) pairs the shipped daisy chain
 lacks, so closure phase is measurable on this day too.
 
-`20170713` is processed to interferograms too but spans 21.8 h — **0.91 of a
-cycle**. `gpri.diurnal.harmonic_design` refuses it, correctly: over less than
-one period the amplitude and the secular rate are not separable, and a number
-returned there would be meaningless. The raw for that campaign does cover a
-full 24.0 h, so reprocessing the missing acquisitions would make it usable —
-again needing GAMMA.
+`20170713` as shipped spans 21.8 h — **0.91 of a cycle**.
+`gpri.diurnal.harmonic_design` refuses it, correctly: over less than one
+period the amplitude and the secular rate are not separable, and a number
+returned there would be meaningless. The raw archive holds 271 acquisitions
+(the survey's 279 counted `.raw.log` files) over 23.9 h — 0.996 of a cycle,
+five minutes short of the last sample. Refocused with `gpri focus` into the
+`20170713_full` scene it is accepted: the fits tolerate `MIN_CYCLES = 0.98`
+of a period because the rate/harmonic correlation has no cliff at exactly one
+cycle (0.78 at 0.996 cycles against 0.78 at 1.0 in an epoch-domain fit, and
+close to zero either way in the pair domain), so a record a few minutes short
+of a day is the same fit as one exactly a day long.
 
 `20160826` is short (3.7 h processed) but was processed into **both** a
 single-reference and a chain network, so the merged set has 25 closed
@@ -103,10 +109,17 @@ script measures closure on `20170803` from thousands of triangles.
 ## Recommended order
 
 1. Use `20170803` now, with the caveats above.
-2. Install GAMMA and process `20170827` to SLCs. It is the dataset the
-   experiment deserves, and its network already has closure.
-3. Reprocess the tail of `20170713` to clear one full cycle, giving a second
-   independent day at a different time of season.
+2. `20170827`, focused with `gpri focus` (`bin/run_scene.sh 20170827` runs
+   the whole chain). It is the dataset the experiment deserves: 1.87 cycles,
+   so the diurnal signal can be checked for repeating from one day to the
+   next (`examples/baker_repeat.py`).
+3. `20170713_full`, the same archive refocused to its full 23.9 h — a second
+   independent day at a different time of season, also run end to end
+   (`bin/run_scene.sh 20170713_full`, half an hour). It is the quiet
+   campaign: no per-pixel diurnal detection, no net line-of-sight rate over
+   the coherent ice, and a night-time trough of a quarter the August depth
+   at the same hours (`examples/baker_seasons.py`, README "Three campaigns
+   on one clock").
 4. `20180709` (17.9 h) and `20170913` (14.5 h) fall short of a cycle even fully
    processed. They are useful for secular velocity, not for diurnal phase.
 
