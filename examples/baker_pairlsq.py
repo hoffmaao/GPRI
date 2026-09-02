@@ -36,7 +36,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from baker_aps import SCENES, integrate, load, split_mask          # noqa: E402
 
 from gpri.aps import epoch_screen_correction, turbulence_screen    # noqa: E402
-from gpri.diurnal import DIURNAL, fit_harmonics                    # noqa: E402
+from gpri.diurnal import DIURNAL, MIN_CYCLES, fit_harmonics        # noqa: E402
 from gpri.pairlsq import fit_pairs                                 # noqa: E402
 from gpri.refractivity import invert_refractivity, screens_to_delta_n  # noqa: E402
 from gpri.timeseries import los_displacement                       # noqa: E402
@@ -64,6 +64,15 @@ def main():
 
     stack, net, phase, cc, r, az, n = load(scene, args.decimate, args.pairs,
                                            antenna=args.antenna)
+    # the record fitted ends at the last epoch a used pair touches, not at
+    # the last epoch of the campaign (``--pairs`` truncates the network)
+    last = float(net.times[max(j for _, j in net.pairs[:n])])
+    span = last * 24
+    if last < DIURNAL * MIN_CYCLES:
+        print(f"{day} spans {span:.1f} h ({span / 24:.2f} cycles); a diurnal fit "
+              f"needs {MIN_CYCLES:g} -- nothing to estimate, see the population "
+              f"and aps steps for the rates")
+        return
     lam = stack.wavelength
     mean_cc = cc.mean(axis=0)
     # per-pair scalar weight: median coherence over the usable swath.
@@ -76,9 +85,10 @@ def main():
         import os as _os
         from baker_north_side import decimated_par
         from gpri.geocode import BAKERBEND1_HEADING, RadarGeometry
+        from gpri.heading import scene_heading
         from gpri.glaciers import glacier_mask, load_outlines, stable_ground_mask
         geom = RadarGeometry(decimated_par(stack.par, args.decimate),
-                             heading=BAKERBEND1_HEADING)
+                             heading=scene_heading(scene, default=BAKERBEND1_HEADING))
         la, lo = geom.geodetic(rows=[0, geom.shape[0] - 1],
                                cols=[0, geom.shape[1] - 1])
         bbox = (lo.min() - .02, la.min() - .02, lo.max() + .02, la.max() + .02)
@@ -181,8 +191,8 @@ def main():
     axes[1].set_title(f"amplitude / sigma  (red contour: SNR = {thr:g})")
     fig.colorbar(im, ax=axes[1], fraction=0.04, pad=0.02)
     for ax in axes:
-        ax.set_xlabel("range sample")
-        ax.set_ylabel("azimuth line")
+        ax.set_xlabel("Range (samples)")
+        ax.set_ylabel("Azimuth (lines)")
     plt.tight_layout()
     args.outdir.mkdir(parents=True, exist_ok=True)
     out = args.outdir / f"15_pairlsq_{day}.png"

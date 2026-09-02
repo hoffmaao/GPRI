@@ -15,6 +15,8 @@ plus, optionally, GAMMA-format ``FLOAT`` rasters you can hand straight back to
     gpri closure    scene                 closure-phase bias against baseline
     gpri unwrap     scene -o unw.npz      PS-interpolation unwrapping of a pair
     gpri geocode    scene vel.npz -o .tif reproject a product to a map frame
+    gpri heading    scene --dem tile.tif  scan heading from the terrain's shadows
+    gpri coregister scene                 did the tripod turn?  offsets per SLC
 
 ``focus`` is the one command that starts before GAMMA's products exist: it
 takes a campaign directory of ``.raw`` / ``.raw_par`` acquisitions and writes
@@ -23,8 +25,12 @@ command can open, using the same processing as GAMMA's ``gpri2_proc.py``.
 
 ``velocity`` and ``timeseries`` also take ``--geotiff``, which geocodes the
 result to a local stereographic GeoTIFF in one step.  That needs a scan
-heading: ``GPRI_scan_heading`` is 0.0 in the BakerBend1 files, so pass
-``--heading`` or the map will be rotated by an unknown amount.
+heading: ``GPRI_scan_heading`` is 0.0 in the BakerBend1 files, so measure it
+with ``gpri heading`` (a DEM and the mean backscatter are enough) or pass
+``--heading``; otherwise the map is rotated by an unknown amount.  Run
+``coregister`` first: it measures each SLC's azimuth offset against the
+last, and if the mount turned during the campaign (2018: 5 deg in five
+hours) ``--write`` leaves a sidecar that puts every epoch on one grid.
 """
 from __future__ import annotations
 
@@ -38,6 +44,7 @@ import numpy as np
 from . import __version__
 from .atmosphere import fit_screen, remove_screen, stable_mask
 from .covariance import coherence_from_slcs
+from .diurnal import m_per_yr
 from .gamma import ParFile, read_slc, write_image
 from .network import Network, read_slc_tab
 from .phaselink import phase_link, temporal_coherence
@@ -222,9 +229,9 @@ def cmd_velocity(args):
     good = np.isfinite(v)
     print(f"velocity: {100 * good.mean():.1f}% of pixels solved")
     if good.any():
-        print(f"  median {np.nanmedian(v) * 1000:+.4f} mm/day, "
-              f"5-95% [{np.nanpercentile(v[good], 5) * 1000:+.4f}, "
-              f"{np.nanpercentile(v[good], 95) * 1000:+.4f}]")
+        print(f"  median {m_per_yr(np.nanmedian(v)):+.3f} m/yr, "
+              f"5-95% [{m_per_yr(np.nanpercentile(v[good], 5)):+.3f}, "
+              f"{m_per_yr(np.nanpercentile(v[good], 95)):+.3f}]")
     if args.output:
         _save(args.output,
               {"velocity": v, "n_pairs": np.sum(w > 0, axis=0),
@@ -253,7 +260,7 @@ def cmd_timeseries(args):
     if rms is not None:
         print(f"  residual rms: median {np.nanmedian(rms) * 1000:.4f} mm")
     v = ts.velocity()
-    print(f"  rate: median {np.nanmedian(v) * 1000:+.4f} mm/day")
+    print(f"  rate: median {m_per_yr(np.nanmedian(v)):+.3f} m/yr")
     if args.output:
         _save(args.output,
               {"displacement": ts.displacement.astype(np.float32),
@@ -287,7 +294,14 @@ def _geocode_and_write(array, st, args, path, kind="velocity"):
     """Reproject a radar-geometry product and write it as a GeoTIFF."""
     from .geocode import RadarGeometry, geocode, write_geotiff
 
-    geom = RadarGeometry(st.par, heading=args.heading)
+    heading = args.heading
+    if heading is None:
+        from .heading import scene_heading
+        try:
+            heading = scene_heading(args.scene)
+        except FileNotFoundError:
+            pass                    # RadarGeometry warns about the 0.0 placeholder
+    geom = RadarGeometry(st.par, heading=heading)
     out, transform = geocode(np.asarray(array, float), geom,
                              spacing=args.map_spacing)
     path = Path(path).with_suffix(".tif")
@@ -469,7 +483,7 @@ def cmd_focus(args):
     from .focus import FocusOptions, focus_campaign
     opts = FocusOptions(dec=args.dec, zero=args.zero, rmin=args.rmin,
                         rmax=args.rmax, kbeta=args.kbeta, heading=args.heading,
-                        ati=args.ati)
+                        ati=args.ati, position=args.position)
     # a run is an hour or more, usually under nohup: keep the log current
     def log(*a):
         print(*a, flush=True)
@@ -479,6 +493,134 @@ def cmd_focus(args):
     focus_campaign(args.campaign, args.scene, opts, workers=args.workers,
                    overwrite=args.overwrite, limit=args.limit,
                    raw_list=args.raw_list, log=log)
+    return 0
+
+
+def cmd_heading(args):
+    from .heading import (heading_from_dem, mean_intensity, scene_heading,
+                          write_scene_heading)
+    scene = Path(args.scene)
+    letter = args.antenna[0].lower()
+    slcs = sorted((scene / args.slc_dir).glob(f"*{letter}.slc"))
+    if not slcs:
+        sys.exit(f"no *{letter}.slc under {scene / args.slc_dir}")
+    from .coregister import scene_azimuth_offsets
+    offsets = scene_azimuth_offsets(scene)
+    t0 = time.time()
+    inten, par, used = mean_intensity(slcs, n=args.n, which=args.which,
+                                      offsets=offsets)
+    print(f"mean intensity of {len(used)} SLCs, {used[0].split('/')[-1]} .. "
+          f"{used[-1].split('/')[-1]}"
+          + (", co-registered" if offsets else "") + f"  ({time.time() - t0:.0f} s)")
+    print(f"radar at {par.float('GPRI_ref_north'):.6f} N "
+          f"{par.float('GPRI_ref_east'):.6f} E, scan from "
+          f"{par.float('GPRI_az_start_angle'):.2f} deg, {par.azimuth_lines} lines")
+    t0 = time.time()
+    fit = heading_from_dem(par, inten, args.dem, rmax=args.rmax,
+                           headings=np.arange(args.search[0], args.search[1],
+                                              args.step),
+                           az_bin=args.step, alt0=args.alt)
+    print(f"heading {fit.heading:.2f} deg true, correlation {fit.corr:.3f}, "
+          f"peak width {fit.width:.1f} deg  ({time.time() - t0:.0f} s)")
+    ranked = np.argsort(fit.curve)[::-1]
+    second = [h for h in fit.headings[ranked] if abs(h - fit.heading) > 3]
+    if second:
+        j = int(np.flatnonzero(fit.headings == second[0])[0])
+        print(f"next peak more than 3 deg away: {second[0]:.2f} deg at "
+              f"{fit.curve[j]:.3f}")
+    if args.write:
+        out = write_scene_heading(scene, fit, extra={
+            "dem": str(args.dem), "antenna": args.antenna, "n_slcs": len(used),
+            "slcs": [u.split("/")[-1] for u in (used[0], used[-1])],
+            "coregistered": bool(offsets)})
+        print(f"wrote {out}")
+    if args.figure:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(3, 1, figsize=(12, 8.5))
+        ext = [fit.measured.shape[1] * args.step, 0]
+        for a, img, t in ((ax[0], fit.measured, f"{scene.name}: mean backscatter "
+                                                f"of {len(used)} SLCs (dB)"),
+                          (ax[1], fit.simulated,
+                           f"DEM simulation at heading {fit.heading:.2f} deg: "
+                           f"shadow and facing")):
+            a.imshow(img, aspect="auto", cmap="gray",
+                     extent=[0, img.shape[1] * (args.rmax - par.float("near_range_slc"))
+                             / img.shape[1] / 1000, fit.antenna_angles[-1],
+                             fit.antenna_angles[0]])
+            a.set_title(t, fontsize=10)
+            a.set_ylabel("Antenna angle (deg)")
+        ax[1].set_xlabel("Slant range (km)")
+        ax[2].plot(fit.headings, fit.curve, lw=1)
+        ax[2].axvline(fit.heading, color="r", lw=0.8)
+        ax[2].set_xlabel("Heading (deg)")
+        ax[2].set_ylabel("Correlation")
+        ax[2].set_title(f"heading {fit.heading:.2f} deg, correlation {fit.corr:.2f}",
+                        fontsize=10)
+        plt.tight_layout()
+        Path(args.figure).parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(args.figure, dpi=130)
+        print(f"wrote {args.figure}")
+    return 0
+
+
+def cmd_coregister(args):
+    from .coregister import (campaign_offsets, scene_azimuth_offsets,
+                             write_azimuth_offsets)
+    scene = Path(args.scene)
+    letter = args.antenna[0].lower()
+    slcs = sorted((scene / args.slc_dir).glob(f"*{letter}.slc"))
+    if not slcs:
+        sys.exit(f"no *{letter}.slc under {scene / args.slc_dir}")
+    ref = {"last": -1, "first": 0}.get(args.reference, args.reference)
+    t0 = time.time()
+    every = max(1, len(slcs) // 20)
+
+    def progress(k, n, sid, off, corr):
+        if k % every == 0 or corr < 0.3:
+            print(f"  {sid}  {off:+7.2f} lines  corr {corr:.2f}"
+                  + ("   <-- no match" if corr < 0.3 else ""))
+
+    res = campaign_offsets(slcs, reference=ref, search=args.search,
+                           ranges=tuple(args.ranges), progress=progress)
+    print(f"{len(slcs)} SLCs against {res.reference}  ({time.time() - t0:.0f} s)")
+    moved = np.abs(res.offsets) > 0.5
+    print(f"offset span {res.span:.2f} lines = {res.span_deg:.2f} deg; "
+          f"{int(moved.sum())} of {len(slcs)} more than half a line from the "
+          f"reference; weakest match {res.corr.min():.2f}")
+    if res.span < 1:
+        print("the tripod held to within a line: the grid is sound"
+              + (" (the sub-line shifts are still applied on read)"
+                 if args.write else "; a sidecar is optional"))
+    if args.write:
+        out = write_azimuth_offsets(scene, res, extra={
+            "antenna": args.antenna, "search": args.search,
+            "ranges_m": list(args.ranges)})
+        print(f"wrote {out}")
+    elif scene_azimuth_offsets(scene) is not None:
+        print("note: an azimuth_offsets.json already exists and was left alone")
+    if args.figure:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        from .network import parse_epoch
+        t = [parse_epoch(i) for i in res.ids]
+        fig, ax = plt.subplots(figsize=(10, 4))
+        ax.plot(t, res.offsets * res.step, ".-", lw=0.8, ms=3)
+        ax.set_ylabel("Offset (deg)")
+        ax.set_xlabel("Time (UTC)")
+        ax.set_title(f"{scene.name}: azimuth offset of each SLC against "
+                     f"{res.reference}; span {res.span_deg:.2f} deg", fontsize=10)
+        ax2 = ax.twinx()
+        ax2.plot(t, res.corr, color="0.6", lw=0.6)
+        ax2.set_ylabel("Match corr", color="0.4")
+        ax2.set_ylim(0, 1)
+        fig.autofmt_xdate()
+        plt.tight_layout()
+        Path(args.figure).parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(args.figure, dpi=130)
+        print(f"wrote {args.figure}")
     return 0
 
 
@@ -518,11 +660,10 @@ def build_parser():
 
     def mapping(sp, tif=True):
         sp.add_argument("--heading", type=float, default=None,
-                        help="true bearing of azimuth zero, degrees. "
-                             "GPRI_scan_heading is 0.0 in the BakerBend1 files "
-                             "and is not a survey; ~105 fits the north side. "
-                             "Solve it properly with "
-                             "gpri.geocode.heading_from_tiepoint")
+                        help="true bearing of azimuth zero, degrees (default: "
+                             "the scene's heading.json from `gpri heading "
+                             "--write`). GPRI_scan_heading is 0.0 in the "
+                             "BakerBend1 files and is not a survey")
         sp.add_argument("--map-spacing", type=float, default=25.0,
                         help="output pixel size in metres (default 25)")
         if tif:
@@ -559,6 +700,10 @@ def build_parser():
                    help="GPRI_scan_heading to record, degrees (default 0)")
     s.add_argument("--ati", action="store_true",
                    help="no squint interpolation (along-track interferometry)")
+    s.add_argument("--position", type=float, nargs=3, default=None,
+                   metavar=("LAT", "LON", "ALT"),
+                   help="radar position to write instead of the raw_par's "
+                        "(for a campaign whose GPS never locked)")
     s.add_argument("--workers", type=int, default=1,
                    help="acquisitions to focus in parallel")
     s.add_argument("--overwrite", action="store_true",
@@ -566,6 +711,47 @@ def build_parser():
     s.add_argument("--limit", type=int, default=0,
                    help="only the first N acquisitions")
     s.set_defaults(func=cmd_focus)
+
+    s = sub.add_parser("heading", help="scan heading from a DEM's shadows")
+    s.add_argument("scene", help="scene directory with slc/")
+    s.add_argument("--dem", required=True,
+                   help="raster DEM covering the swath (a Copernicus 30 m tile)")
+    s.add_argument("--antenna", default="upper", choices=("upper", "lower"))
+    s.add_argument("--slc-dir", default="slc")
+    s.add_argument("--n", type=int, default=8,
+                   help="SLCs to average for the backscatter (default 8)")
+    s.add_argument("--which", default="first", choices=("first", "last"),
+                   help="which end of the campaign the SLCs come from")
+    s.add_argument("--search", type=float, nargs=2, default=(0.0, 360.0),
+                   metavar=("FROM", "TO"), help="heading range to scan")
+    s.add_argument("--step", type=float, default=0.2,
+                   help="scan step and azimuth bin, degrees (default 0.2)")
+    s.add_argument("--rmax", type=float, default=12000.0,
+                   help="farthest range compared, metres (default 12000)")
+    s.add_argument("--alt", type=float, default=None,
+                   help="radar height, metres (default: DEM at the radar + 2)")
+    s.add_argument("--write", action="store_true",
+                   help="record the result as heading.json under GPRI_WORK_ROOT")
+    s.add_argument("--figure", default=None,
+                   help="save measured / simulated / correlation panels here")
+    s.set_defaults(func=cmd_heading)
+
+    s = sub.add_parser("coregister",
+                       help="did the tripod turn?  azimuth offset of every SLC")
+    s.add_argument("scene", help="scene directory with slc/")
+    s.add_argument("--antenna", default="upper", choices=("upper", "lower"))
+    s.add_argument("--slc-dir", default="slc")
+    s.add_argument("--reference", default="last",
+                   help="'last' (default), 'first' or an acquisition id")
+    s.add_argument("--search", type=int, default=40,
+                   help="largest offset tried, lines (default 40)")
+    s.add_argument("--ranges", type=float, nargs=2, default=(1500.0, 12000.0),
+                   metavar=("NEAR", "FAR"), help="slant ranges matched, metres")
+    s.add_argument("--write", action="store_true",
+                   help="record the offsets as azimuth_offsets.json under "
+                        "GPRI_WORK_ROOT (the stack reads them)")
+    s.add_argument("--figure", default=None, help="save offset-vs-time plot here")
+    s.set_defaults(func=cmd_coregister)
 
     s = sub.add_parser("info", help="summarise a scene")
     common(s, window=False)

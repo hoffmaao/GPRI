@@ -324,7 +324,8 @@ class SlcPairStack(_PairStack):
     ----------
     images : sequence of paths
         SLCs in time order.  GPRI is tripod-mounted, so a deployment's scenes
-        are coregistered already.
+        are coregistered already — unless the mount moved, for which see
+        ``azimuth_shifts``.
     par : path or :class:`gpri.gamma.ParFile`
         Geometry of the SLCs (any one of them; they share it).
     lags : sequence of int
@@ -344,12 +345,22 @@ class SlcPairStack(_PairStack):
         SLCs held in memory.  Pairs are ordered so that walking them in index
         order needs only ``max(lags) + 1`` scenes at a time; that is the
         default.
+    azimuth_shifts : sequence of float, optional
+        Lines by which each SLC is shifted along azimuth as it is read
+        (:func:`gpri.coregister.shift_azimuth`), one per image, so that a
+        campaign whose tripod turned is read on one grid.  Measured by
+        ``gpri coregister``; see :meth:`apply_azimuth_offsets`.
     """
 
     def __init__(self, images, par, lags=(1,), looks=(1, 1), coherence=(5, 5),
                  weighting="triangular", cache=None, network=None,
-                 image_format=None):
+                 image_format=None, azimuth_shifts=None):
         self.images = [Path(p) for p in images]
+        self.azimuth_shifts = None
+        if azimuth_shifts is not None:
+            self.azimuth_shifts = np.asarray(azimuth_shifts, float)
+            if self.azimuth_shifts.shape != (len(self.images),):
+                raise ValueError("one azimuth shift per image, please")
         slc_par = par if isinstance(par, ParFile) else ParFile.load(par)
         self.image_format = image_format or slc_par.image_format
         # Every SLC must be the same width, but a campaign whose sweep was
@@ -468,10 +479,27 @@ class SlcPairStack(_PairStack):
                 self._slcs.pop(oldest)
                 self._power.pop(oldest, None)
             na, nr = self.slc_par.shape
-            self._slcs[e] = read_image(self.images[e], shape=(self._lines[e], nr),
-                                       image_format=self.image_format
-                                       )[:na].astype(np.complex64)
+            slc = read_image(self.images[e], shape=(self._lines[e], nr),
+                             image_format=self.image_format
+                             )[:na].astype(np.complex64)
+            if self.azimuth_shifts is not None and self.azimuth_shifts[e] != 0:
+                from .coregister import shift_azimuth
+                slc = shift_azimuth(slc, self.azimuth_shifts[e])
+            self._slcs[e] = slc
         return self._slcs[e]
+
+    def apply_azimuth_offsets(self, offsets):
+        """Shift every SLC by its recorded offset, ``{acquisition id: lines}``.
+
+        The table ``gpri coregister --write`` leaves as
+        ``azimuth_offsets.json`` (:func:`gpri.coregister.scene_azimuth_offsets`);
+        keyed by acquisition, so one measurement serves both antennas.
+        ``None`` means the tripod held and is a no-op.
+        """
+        from .coregister import shifts_for
+        self.close()
+        self.azimuth_shifts = None if offsets is None else shifts_for(self.images, offsets)
+        return self
 
     def read_slc(self, e):
         """Epoch ``e``'s SLC, cropped to the stack's common frame."""

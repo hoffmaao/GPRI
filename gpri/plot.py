@@ -34,7 +34,7 @@ __all__ = [
 STYLES = {
     "phase":        ("twilight", False, "phase (rad)"),
     "displacement": ("RdBu_r", True, "LOS displacement (mm)"),
-    "velocity":     ("RdBu_r", True, "LOS velocity (mm/day)"),
+    "velocity":     ("RdBu_r", True, "LOS velocity (m/yr)"),
     "coherence":    ("magma", False, "coherence"),
     "amplitude":    ("gray", False, "amplitude (dB)"),
     "refractivity": ("RdBu_r", True, "$\\Delta N$ (N-units)"),
@@ -89,12 +89,12 @@ def radar_image(data, geom=None, kind="phase", ax=None, title=None, cmap=None,
         az = geom.par.float("GPRI_az_start_angle", 0.0) + \
             geom.par.float("GPRI_az_angle_step", 0.0) * np.arange(a.shape[0])
         extent = [r[0], r[-1], az[-1], az[0]]
-        ax.set_xlabel("ground range (km)" if ground_range else "slant range (km)")
-        ax.set_ylabel("azimuth angle (deg)")
+        ax.set_xlabel("Ground range (km)" if ground_range else "Slant range (km)")
+        ax.set_ylabel("Azimuth angle (deg)")
     else:
         extent = None
-        ax.set_xlabel("range sample")
-        ax.set_ylabel("azimuth line")
+        ax.set_xlabel("Range (samples)")
+        ax.set_ylabel("Azimuth (lines)")
 
     im = ax.imshow(a, cmap=cmap, vmin=lo, vmax=hi, extent=extent,
                    aspect="auto", interpolation="nearest", origin="upper")
@@ -140,8 +140,8 @@ def map_image(data, transform, kind="velocity", ax=None, title=None, cmap=None,
     im = ax.imshow(a, cmap=cmap, vmin=lo, vmax=hi, extent=extent,
                    origin="upper", interpolation="nearest")
 
-    ax.set_xlabel("easting (km)")
-    ax.set_ylabel("northing (km)")
+    ax.set_xlabel("Easting (km)")
+    ax.set_ylabel("Northing (km)")
     ax.set_aspect("equal")
     if title:
         ax.set_title(title)
@@ -158,14 +158,15 @@ def map_image(data, transform, kind="velocity", ax=None, title=None, cmap=None,
     return ax
 
 
-def velocity_map(velocity, transform, wavelength=None, per_day=True, **kwargs):
-    """LOS velocity in mm/day on a map, diverging about zero.
+def velocity_map(velocity, transform, wavelength=None, **kwargs):
+    """LOS velocity in m/yr on a map, diverging about zero.
 
     ``velocity`` is metres per day out of :func:`gpri.timeseries.stack_velocity`
-    or :meth:`gpri.timeseries.TimeSeries.velocity`; it is scaled to mm here
-    because millimetres are what a GPRI actually resolves.
+    or :meth:`gpri.timeseries.TimeSeries.velocity`; it is scaled to metres
+    per year here, the unit glacier velocities are quoted in.
     """
-    v = np.asarray(velocity, float) * 1000.0
+    from .diurnal import m_per_yr
+    v = m_per_yr(velocity)
     kwargs.setdefault("title", "LOS velocity (positive toward radar)")
     return map_image(v, transform, kind="velocity", **kwargs)
 
@@ -208,8 +209,8 @@ def coverage_map(geom, spacing=25.0, ax=None, crs=None, features=None):
             ax.annotate(name, (fx / 1000, fy / 1000), textcoords="offset points",
                         xytext=(6, 4), fontsize=8, color="firebrick")
 
-    ax.set_xlabel("easting (km)")
-    ax.set_ylabel("northing (km)")
+    ax.set_xlabel("Easting (km)")
+    ax.set_ylabel("Northing (km)")
     ax.set_aspect("equal")
     ax.set_title(f"Illuminated fan, scan heading {geom.heading:.1f}$\\degree$")
     ax.legend(loc="upper right", fontsize=8)
@@ -268,8 +269,9 @@ def displacement_series(ts, pixels=None, ax=None, unit="mm", label=None):
     for y, lab in series:
         ax.plot(t, y * scale, marker="o", ms=2.5, lw=1.0, label=lab)
     ax.axhline(0.0, color="0.6", lw=0.8, zorder=0)
-    ax.set_xlabel("hours from first acquisition")
-    ax.set_ylabel(f"LOS displacement ({unit}), positive toward radar")
+    ax.set_xlabel("Elapsed time (hr)")
+    ax.set_ylabel(f"LOS displacement ({unit})")
+    ax.set_title("positive toward the radar", fontsize=9)
     ax.legend(fontsize=8)
     return ax
 
@@ -296,8 +298,8 @@ def network_plot(network, ax=None, values=None, cmap="viridis", label=None):
         ax.plot([t[i], t[j]], [dt[k], dt[k]], "-", color=colours[k], lw=1.0,
                 alpha=0.85)
     ax.plot(t, np.zeros_like(t), "|", color="k", ms=8, mew=0.8)
-    ax.set_xlabel("hours from first acquisition")
-    ax.set_ylabel("temporal baseline (hours)")
+    ax.set_xlabel("Elapsed time (hr)")
+    ax.set_ylabel("Temporal baseline (hr)")
     ax.set_title(f"{network.n_epochs} epochs, {network.n_pairs} pairs, "
                  f"{'connected' if network.is_connected() else 'DISCONNECTED'}")
     if values is not None:
@@ -325,13 +327,13 @@ def closure_bias_plot(model, ax=None, wavelength=None, unit="mm"):
     if wl is not None and unit != "rad":
         from .timeseries import los_displacement
         y = los_displacement(b, wl) * {"mm": 1000.0, "cm": 100.0, "m": 1.0}[unit]
-        ylab = f"bias ({unit} LOS)"
+        ylab = f"Closure bias ({unit})"
     else:
-        y, ylab = b, "bias (rad)"
+        y, ylab = b, "Closure bias (rad)"
 
     ax.plot(x, y, "o-", ms=4, lw=1.2, color="C3")
     ax.axhline(0.0, color="0.6", lw=0.8, zorder=0)
-    ax.set_xlabel("temporal baseline (hours)")
+    ax.set_xlabel("Temporal baseline (hr)")
     ax.set_ylabel(ylab)
     ax.set_title(f"Closure bias, {model.n_triplets} triplets\n"
                  "(blind to a bias linear in baseline, i.e. to velocity)",
@@ -361,8 +363,8 @@ def refractivity_plot(N, times=None, ax=None, met=None, label="estimated"):
                 lw=1.0, color="C1", label="from met data")
         ax.legend(fontsize=8)
     ax.axhline(0.0, color="0.6", lw=0.8, zorder=0)
-    ax.set_xlabel("hours from first acquisition" if times is not None else "epoch")
-    ax.set_ylabel("$\\Delta N$ (N-units), relative to reference epoch")
+    ax.set_xlabel("Elapsed time (hr)" if times is not None else "Epoch (index)")
+    ax.set_ylabel("$\\Delta N$ (N-units)")
     return ax
 
 
@@ -383,13 +385,13 @@ def ps_map(mask, transform=None, geom=None, ax=None, background=None,
         xmin, sx, _, ymax, _, sy = transform
         extent = [xmin / 1000, (xmin + sx * m.shape[1]) / 1000,
                   (ymax + sy * m.shape[0]) / 1000, ymax / 1000]
-        ax.set_xlabel("easting (km)")
-        ax.set_ylabel("northing (km)")
+        ax.set_xlabel("Easting (km)")
+        ax.set_ylabel("Northing (km)")
         ax.set_aspect("equal")
     else:
         extent = None
-        ax.set_xlabel("range sample")
-        ax.set_ylabel("azimuth line")
+        ax.set_xlabel("Range (samples)")
+        ax.set_ylabel("Azimuth (lines)")
 
     if background is not None:
         b = np.asarray(background, float)
@@ -437,8 +439,8 @@ def diurnal_summary(fit, times, slant_range=None, mask=None, origin_hour=0.0,
     axes[1].figure.colorbar(im, ax=axes[1], fraction=0.04, pad=0.02,
                             label="hour of day")
     for ax in axes[:2]:
-        ax.set_xlabel("range sample")
-        ax.set_ylabel("azimuth line")
+        ax.set_xlabel("Range (samples)")
+        ax.set_ylabel("Azimuth (lines)")
 
     ax = axes[2]
     if slant_range is not None:
@@ -456,8 +458,8 @@ def diurnal_summary(fit, times, slant_range=None, mask=None, origin_hour=0.0,
             ax.legend(fontsize=8)
             ax.set_title("amplitude vs range — atmosphere is linear here",
                          fontsize=10)
-    ax.set_xlabel("slant range (km)")
-    ax.set_ylabel("diurnal amplitude (mm)")
+    ax.set_xlabel("Slant range (km)")
+    ax.set_ylabel("Diurnal amplitude (mm)")
 
     ax = axes[3]
     t = np.asarray(times, float)
@@ -472,9 +474,9 @@ def diurnal_summary(fit, times, slant_range=None, mask=None, origin_hour=0.0,
         if s.any():
             ax.plot(hours, 1000.0 * np.nanmean(flat[:, s], axis=1), ".", ms=2,
                     color="C3", label="stable ground (null)")
-    ax.set_xlabel("hour of day")
-    ax.set_ylabel("modelled LOS displacement (mm)")
-    ax.set_title("stacked diurnal cycle", fontsize=10)
+    ax.set_xlabel("Clock hour (hr)")
+    ax.set_ylabel("Modelled LOS (mm)")
+    ax.set_title("stacked diurnal cycle, relative to the reference epoch", fontsize=10)
     ax.legend(fontsize=8)
     ax.axhline(0.0, color="0.6", lw=0.8, zorder=0)
     return axes

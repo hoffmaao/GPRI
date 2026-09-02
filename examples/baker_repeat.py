@@ -47,7 +47,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from baker_aps import SCENES, integrate, load, split_mask          # noqa: E402
 
 from gpri.aps import epoch_screen_correction, turbulence_screen    # noqa: E402
-from gpri.diurnal import DIURNAL                                   # noqa: E402
+from gpri.diurnal import DIURNAL, m_per_yr                         # noqa: E402
 from gpri.network import Network                                   # noqa: E402
 from gpri.pairlsq import fit_pairs                                 # noqa: E402
 from gpri.timeseries import los_displacement                       # noqa: E402
@@ -147,9 +147,10 @@ def main():
         import os as _os
         from baker_north_side import decimated_par
         from gpri.geocode import BAKERBEND1_HEADING, RadarGeometry
+        from gpri.heading import scene_heading
         from gpri.glaciers import glacier_mask, load_outlines, stable_ground_mask
         geom = RadarGeometry(decimated_par(stack.par, args.decimate),
-                             heading=BAKERBEND1_HEADING)
+                             heading=scene_heading(scene, default=BAKERBEND1_HEADING))
         la, lo = geom.geodetic(rows=[0, geom.shape[0] - 1],
                                cols=[0, geom.shape[1] - 1])
         bbox = (lo.min() - .02, la.min() - .02, lo.max() + .02, la.max() + .02)
@@ -190,7 +191,7 @@ def main():
     amp = {k: f.amplitude(DIURNAL) * 1000 for k, f in fits.items()}
     snr = {k: f.snr(DIURNAL) for k, f in fits.items()}
     peak = {k: f.peak_time(DIURNAL, origin_hour=origin) for k, f in fits.items()}
-    rate = {k: f.secular * 1000 / 24 for k, f in fits.items()}    # mm/hr
+    rate = {k: m_per_yr(f.secular) for k, f in fits.items()}       # m/yr
 
     z = {k: phasor(f) * 1000 for k, f in fits.items()}                # mm
 
@@ -203,7 +204,7 @@ def main():
         a = np.nanmedian(amp[k][ice]); s = np.nanmedian(snr[k][ice])
         p = peak_of(np.nanmean(z[k][ice]), origin); v = np.nanmedian(rate[k][ice])
         fa = 100 * np.nanmean(snr[k][held_m] > thr)
-        print(f"{k:6s} {a:6.2f} mm {s:8.2f} {p:10.1f} h  {v:6.3f} mm/hr"
+        print(f"{k:6s} {a:6.2f} mm {s:8.2f} {p:10.1f} h  {v:+6.2f} m/yr"
               f"  {fa:8.1f}%")
 
     # ---- does it repeat? --------------------------------------------------
@@ -272,7 +273,7 @@ def main():
         print(f"  {k}: {size}x{size} block amplitude above the bedrock null "
               f"({null:.2f} mm) on {100 * show.sum() / ice.sum():.0f}% of ice")
     for ax in axes.ravel()[:5]:
-        ax.set_xlabel("Range sample"); ax.set_ylabel("Azimuth line")
+        ax.set_xlabel("Range (samples)"); ax.set_ylabel("Azimuth (lines)")
     ax = axes[1][2]
     hours = np.linspace(0, 24, 241)
     for k, style in (("day 1", "-"), ("day 2", "-"), ("both", ":")):

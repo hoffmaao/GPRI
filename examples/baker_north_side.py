@@ -30,6 +30,7 @@ import matplotlib.pyplot as plt
 from gpri import atmosphere, plot
 from gpri.gamma import ParFile
 from gpri.geocode import BAKERBEND1_HEADING, RadarGeometry, geocode
+from gpri.heading import scene_heading
 from gpri.refractivity import invert_refractivity, screens_to_delta_n
 from gpri.stack import DiffStack
 from gpri.timeseries import los_displacement, stack_velocity
@@ -120,7 +121,9 @@ def main():
     ap.add_argument("--scene", type=Path, default=SCENE)
     ap.add_argument("--pairs", type=int, default=120)
     ap.add_argument("--decimate", type=int, default=8, help="range decimation")
-    ap.add_argument("--heading", type=float, default=BAKERBEND1_HEADING)
+    ap.add_argument("--heading", type=float, default=None,
+                    help="scan heading, deg true (default: the scene's "
+                         "heading.json from `gpri heading --write`)")
     ap.add_argument("--spacing", type=float, default=25.0, help="map pixel, m")
     ap.add_argument("--outdir", type=Path, default=Path("docs/figures"))
     ap.add_argument("--coherence", type=float, default=0.4,
@@ -129,6 +132,8 @@ def main():
                     help="mean-coherence floor below which rate is masked")
     args = ap.parse_args()
     args.outdir.mkdir(parents=True, exist_ok=True)
+    if args.heading is None:
+        args.heading = scene_heading(args.scene, default=BAKERBEND1_HEADING)
 
     # ---------------------------------------------------------------- load
     t0 = time.time()

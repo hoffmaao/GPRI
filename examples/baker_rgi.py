@@ -42,6 +42,7 @@ from baker_aps import SCENES, open_stack                           # noqa: E402
 from baker_north_side import decimated_par, read_backdrop          # noqa: E402
 
 from gpri.geocode import BAKERBEND1_HEADING, RadarGeometry, geocode  # noqa: E402
+from gpri.heading import scene_heading                              # noqa: E402
 from gpri.glaciers import (glacier_mask, load_outlines, outline_paths,  # noqa: E402
                            stable_ground_mask)
 
@@ -51,7 +52,9 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--scene", default="20170803")
     ap.add_argument("--decimate", type=int, default=16)
-    ap.add_argument("--heading", type=float, default=BAKERBEND1_HEADING)
+    ap.add_argument("--heading", type=float, default=None,
+                    help="scan heading, deg true (default: the scene's "
+                         "heading.json from `gpri heading --write`)")
     ap.add_argument("--stable-coherence", type=float, default=0.85)
     ap.add_argument("--buffer", type=float, default=100.0,
                     help="metres to stand clear of the RGI outlines")
@@ -66,6 +69,8 @@ def main():
     ap.add_argument("--outdir", type=Path, default=Path("docs/figures"))
     args = ap.parse_args()
     scene = Path(SCENES.get(args.scene) or args.scene)
+    if args.heading is None:
+        args.heading = scene_heading(scene, default=BAKERBEND1_HEADING)
     day = scene.name + ("" if args.antenna == "upper" else f"_{args.antenna}")
 
     # ---- mean coherence from a stride of pairs -----------------------------
@@ -161,8 +166,8 @@ def main():
                              f"({100 * contested.sum() / max(old.sum(), 1):.0f}% of old mask)"),
         mpatches.Patch(color="#9edae5", label="glacier surface in the maps"),
     ], loc="lower right", fontsize=8)
-    ax.set_xlabel("easting (km)")
-    ax.set_ylabel("northing (km)")
+    ax.set_xlabel("Easting (km)")
+    ax.set_ylabel("Northing (km)")
     ax.set_aspect("equal")
     ok = np.isfinite(cls_map)
     if ok.any():

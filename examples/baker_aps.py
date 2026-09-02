@@ -56,7 +56,7 @@ _spec.loader.exec_module(_site)
 _site.load_site()
 SCENES = {d: _os.environ.get(f"GPRI_SCENE_{d}", "")
           for d in ("20170827", "20170803", "20170713", "20170713_full",
-                    "20160826")}
+                    "20160826", "20170913", "20180709")}
 
 
 def open_stack(scene: Path, antenna: str = "upper", lags=(1,), looks=(1, 1)):
@@ -67,6 +67,8 @@ def open_stack(scene: Path, antenna: str = "upper", lags=(1,), looks=(1, 1)):
     lower antenna, or a network with i->i+2 / i->i+3 pairs, or multilooked
     products — is formed from the SLCs with :class:`gpri.stack.SlcPairStack`,
     which reproduces GAMMA's ``.diff`` to 1e-7 rad and its ``.cc`` to 0.014.
+    If ``gpri coregister --write`` left an ``azimuth_offsets.json`` for the
+    scene, the SLCs are shifted onto its reference grid as they are read.
     """
     from gpri.stack import SlcPairStack
     letter = antenna[0].lower()
@@ -78,9 +80,13 @@ def open_stack(scene: Path, antenna: str = "upper", lags=(1,), looks=(1, 1)):
         return DiffStack.from_directory(scene / "diff0",
                                         slc_tab=tab if tab.exists() else None)
     if letter == "u" and tab.exists():
-        return SlcPairStack.from_tab(tab, lags=lags, looks=looks)
-    return SlcPairStack.from_directory(scene / "slc", antenna=letter,
-                                       lags=lags, looks=looks)
+        st = SlcPairStack.from_tab(tab, lags=lags, looks=looks)
+    else:
+        st = SlcPairStack.from_directory(scene / "slc", antenna=letter,
+                                         lags=lags, looks=looks)
+    # a tripod that turned (20180709: 5 deg in five hours) is read on one grid
+    from gpri.coregister import scene_azimuth_offsets
+    return st.apply_azimuth_offsets(scene_azimuth_offsets(scene))
 
 
 def _cache_path(scene: Path, antenna: str, lags, looks, dec: int):
@@ -111,13 +117,26 @@ def load(scene: Path, dec: int, n_max: int = 0, antenna: str = "upper",
     az = (par.float("GPRI_az_start_angle", 0.0)
           + step * np.arange(par.azimuth_lines)) if step else None
 
+    # the azimuth grid the pairs were formed on is part of the cache's
+    # identity: a sidecar written since (or remeasured) means reading again
+    shifts = getattr(stack, "azimuth_shifts", None)    # GAMMA's diff0 has none
+    shifts = (np.zeros(stack.n_epochs) if shifts is None
+              else np.asarray(shifts, float))
     cpath = _cache_path(scene, antenna, lags, looks, dec)
     if cache and cpath.exists():
         with np.load(cpath) as z:
-            if int(z["n_pairs"]) >= n and tuple(z["shape"]) == (stack.shape[0], nc):
+            was = z["azimuth_shifts"] if "azimuth_shifts" in z.files else np.zeros(stack.n_epochs)
+            same_grid = was.shape == shifts.shape and np.allclose(was, shifts, atol=0.01)
+            if (int(z["n_pairs"]) >= n and tuple(z["shape"]) == (stack.shape[0], nc)
+                    and same_grid):
                 phase, cc = z["phase"][:n], z["cc"][:n]
                 print(f"loaded {n} pairs from {cpath}")
                 return stack, net, phase, cc, r, az, n
+            if not same_grid:
+                by = (f"by up to {np.abs(was - shifts).max():.2f} lines"
+                      if was.shape == shifts.shape else "in number")
+                print(f"{cpath} was formed on another azimuth grid (offsets "
+                      f"changed {by}): reading the pairs again")
 
     phase = np.empty((n, stack.shape[0], nc), np.float32)
     cc = np.empty(phase.shape, np.float32)
@@ -137,7 +156,7 @@ def load(scene: Path, dec: int, n_max: int = 0, antenna: str = "upper",
         cpath.parent.mkdir(parents=True, exist_ok=True)
         np.savez(cpath, phase=phase, cc=cc, n_pairs=n,
                  shape=np.array(phase.shape[1:]), pairs=net.pairs,
-                 times=net.times)
+                 times=net.times, azimuth_shifts=shifts)
         print(f"cached to {cpath}")
     return stack, net, phase, cc, r, az, n
 
@@ -210,9 +229,10 @@ def main():
     if args.rgi:
         from baker_north_side import decimated_par
         from gpri.geocode import BAKERBEND1_HEADING, RadarGeometry
+        from gpri.heading import scene_heading
         from gpri.glaciers import load_outlines, stable_ground_mask
         geom = RadarGeometry(decimated_par(stack.par, args.decimate),
-                             heading=BAKERBEND1_HEADING)
+                             heading=scene_heading(scene, default=BAKERBEND1_HEADING))
         la, lo = geom.geodetic(rows=[0, geom.shape[0] - 1],
                                cols=[0, geom.shape[1] - 1])
         bbox = (lo.min() - .02, la.min() - .02, lo.max() + .02, la.max() + .02)
@@ -303,9 +323,9 @@ def main():
         axes[0].plot(hours, np.nanmean(series[k][:, held_m], axis=1) * 1000,
                      lw=1.0, label=f"stage {k}: {results[[x for x in results if x.startswith(k)][0]]:.1f} mm rms")
     axes[0].axhline(0, color="0.6", lw=0.8, zorder=0)
-    axes[0].set_xlabel("hours from first acquisition")
-    axes[0].set_ylabel("held-out bedrock mean LOS (mm)")
-    axes[0].set_title(f"{day}: what each correction stage leaves on bedrock",
+    axes[0].set_xlabel("Elapsed time (hr)")
+    axes[0].set_ylabel("Mean LOS (mm)")
+    axes[0].set_title(f"{day}: what each correction stage leaves on held-out bedrock",
                       fontsize=10)
     axes[0].legend(fontsize=8)
 
@@ -313,9 +333,9 @@ def main():
              for k in "ABCD"}
     for k in "ABCD":
         axes[1].plot(hours, rms_t[k], lw=1.0, label=f"stage {k}")
-    axes[1].set_xlabel("hours from first acquisition")
-    axes[1].set_ylabel("held-out bedrock RMS (mm)")
-    axes[1].set_title("error growth through the series", fontsize=10)
+    axes[1].set_xlabel("Elapsed time (hr)")
+    axes[1].set_ylabel("Rock RMS (mm)")
+    axes[1].set_title("error growth through the series, held-out bedrock", fontsize=10)
     axes[1].legend(fontsize=8)
     args.outdir.mkdir(parents=True, exist_ok=True)
     out = args.outdir / f"12_aps_{day}.png"

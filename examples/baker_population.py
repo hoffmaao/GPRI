@@ -6,9 +6,25 @@
 Per pixel the corrected series is single-look noise growing as sqrt(t); the
 median over thirty thousand RGI ice pixels is not, and neither is the median
 over the held-out bedrock that never saw a correction.  This script draws
-both against a UTC clock, as departures from each population's own linear
-trend, on the same corrected displacement the pair-domain fits and the movies
-use (reference + drift removal + turbulence, ``--rgi`` masks).
+both against a UTC clock, as departures from each pixel's own secular trend,
+on the same corrected displacement the pair-domain fits and the movies use
+(reference + drift removal + turbulence, ``--rgi`` masks).
+
+The trend is the point.  A least-squares line through a day of ice motion
+absorbs part of whatever repeats each day unless that waveform happens to be
+symmetric about the record's middle — a night-time trough with a sharp
+morning recovery is not — so a "linear trend anomaly" is the waveform with a
+tilt taken out of it and the rate it reports is biased by the same tilt.  On
+a record longer than one cycle the separation can be made without assuming
+any shape: the displacement between an epoch and the one 24 h later contains
+no 24 h-periodic part at all (:func:`gpri.diurnal.secular_slope`).  Where the
+record allows it (20170803's 24.2 h just does; 20170827's 44.9 h comfortably)
+the secular rate is taken from those same-hour differences and the anomaly
+is measured from that line; the linear version is drawn beside it for
+comparison, and a record under one cycle keeps the line.  For two or more
+UTC days the hour-of-day composite (:func:`gpri.diurnal.hour_composite`) is
+the shape-agnostic estimate of the cycle itself, and what is left after it
+is what did not repeat.
 
 It answers a question the harmonic fits cannot: *what shape* is the
 non-secular motion — a smooth afternoon-peaking oscillation, which is what
@@ -41,7 +57,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from baker_aps import SCENES, integrate, load, split_mask          # noqa: E402
 
 from gpri.aps import epoch_screen_correction, turbulence_screen    # noqa: E402
-from gpri.diurnal import DIURNAL                                   # noqa: E402
+from gpri.diurnal import (DIURNAL, MIN_CYCLES, hour_composite,     # noqa: E402
+                          m_per_yr, secular_slope)
 from gpri.timeseries import los_displacement                       # noqa: E402
 
 
@@ -108,9 +125,10 @@ def main():
         import os as _os
         from baker_north_side import decimated_par
         from gpri.geocode import BAKERBEND1_HEADING, RadarGeometry
+        from gpri.heading import scene_heading
         from gpri.glaciers import glacier_mask, load_outlines, stable_ground_mask
         geom = RadarGeometry(decimated_par(stack.par, args.decimate),
-                             heading=BAKERBEND1_HEADING)
+                             heading=scene_heading(scene, default=BAKERBEND1_HEADING))
         la, lo = geom.geodetic(rows=[0, geom.shape[0] - 1],
                                cols=[0, geom.shape[1] - 1])
         bbox = (lo.min() - .02, la.min() - .02, lo.max() + .02, la.max() + .02)
@@ -141,26 +159,103 @@ def main():
     hours = t * 24
     pops = {"ice": ice, "held-out bedrock": held_m}
     series = {k: np.nanmedian(d[:, m], axis=1) * 1000 for k, m in pops.items()}
+
+    # ---- the secular signal: where did each population end up? -----------
+    # (rock the corrections never saw must sit at zero; ice need not)
+    last = d[-1] * 1000
+    print(f"\ncumulative LOS after {hours[-1]:.1f} h, mm, positive towards the radar")
+    print(f"  {'population':18s} {'px':>7s} {'median':>8s} {'mean':>8s} {'p16':>6s} {'p84':>6s}")
+    for k, m in pops.items():
+        v = last[m]
+        v = v[np.isfinite(v)]
+        p16, p84 = np.percentile(v, [16, 84])
+        print(f"  {k:18s} {v.size:7,d} {np.median(v):+8.1f} {v.mean():+8.1f} "
+              f"{p16:+6.0f} {p84:+6.0f}")
+    v, ri = last[ice], np.broadcast_to(r, last.shape)[ice]
+    ok = np.isfinite(v)
+    print(f"  corr(ice displacement, slant range) {np.corrcoef(v[ok], ri[ok])[0, 1]:+.2f}"
+          f"  -- near zero means motion, not a screen extrapolated over the ice\n")
+
     da, rate_px = detrend_pixels(t, d)
     del d
-    anom = {k: np.nanmedian(da[:, m], axis=1) * 1000 for k, m in pops.items()}
+    linear = {k: np.nanmedian(da[:, m], axis=1) * 1000 for k, m in pops.items()}
+    rate_lin = {k: np.nanmedian(rate_px[m]) * 1000 for k, m in pops.items()}  # mm/day
+    origin = net.epochs[0].hour + net.epochs[0].minute / 60.0
+
+    # ---- the secular line without a shape: same-hour differences ---------
+    # the line's tilt is common to every pixel of a population that shares
+    # the waveform, so it is measured once on the population median and
+    # taken out of every pixel's anomaly (and put back into its rate)
+    tilt = {}                      # mm/day the linear rate under-states by
+    tol = (1 - MIN_CYCLES) * DIURNAL      # the harmonic fits' allowance
+    try:
+        for k in pops:
+            tilt[k] = secular_slope(t, linear[k], tolerance=tol)[0]
+        detrend = "periodic"
+    except ValueError as e:        # under one cycle: the line is all there is
+        print(f"secular rate from same-hour differences: {e}")
+        tilt = {k: 0.0 for k in pops}
+        detrend = "linear"
+    tc = t - t.mean()
+    anom = {k: linear[k] - tilt[k] * tc for k in pops}
+    rates = {k: rate_lin[k] + tilt[k] for k in pops}
+    da[:, ice] -= (tilt["ice"] / 1000) * tc[:, None]
     q_anom = np.nanpercentile(da[:, ice], [25, 75], axis=1) * 1000
     del da
-    rates = {k: np.nanmedian(rate_px[m]) * 1000 for k, m in pops.items()}
-    origin = net.epochs[0].hour + net.epochs[0].minute / 60.0
-    print(f"median linear rate over the record: ice {rates['ice'] / 24:.3f} mm/hr, "
-          f"held-out bedrock {rates['held-out bedrock'] / 24:.3f} mm/hr")
-    print(f"trend anomaly RMS: ice {np.nanstd(anom['ice']):.2f} mm, "
-          f"bedrock {np.nanstd(anom['held-out bedrock']):.2f} mm; "
-          f"correlation {np.corrcoef(anom['ice'], anom['held-out bedrock'])[0, 1]:.2f}")
+    if detrend == "periodic":
+        n_same = secular_slope(t, linear["ice"], tolerance=tol)[1]
+        print(f"secular rate by same-hour differences ({n_same} pairs of epochs "
+              f"24 h apart): ice {m_per_yr(rates['ice'], 'mm'):+.2f} m/yr, "
+              f"held-out bedrock {m_per_yr(rates['held-out bedrock'], 'mm'):+.2f} m/yr "
+              f"(ground that does not move: the estimator's error on this record)")
+        print(f"  the linear fit gave ice {m_per_yr(rate_lin['ice'], 'mm'):+.2f} m/yr: "
+              f"the waveform tilts the line by {m_per_yr(-tilt['ice'], 'mm'):+.2f} m/yr, "
+              f"{-tilt['ice'] * t[-1] / 2:+.1f} mm at either end of the record")
+    else:
+        print(f"median linear rate over the record: ice "
+              f"{m_per_yr(rates['ice'], 'mm'):+.2f} m/yr, held-out bedrock "
+              f"{m_per_yr(rates['held-out bedrock'], 'mm'):+.2f} m/yr")
+    # the shape correlation is taken with both lines removed: the same-hour
+    # tilt on bedrock is the estimator's noise, a ramp that would correlate
+    # with the ice ramp and say nothing about whether the waveforms match
+    print(f"trend anomaly RMS ({detrend} detrend): ice {np.nanstd(anom['ice']):.2f} mm, "
+          f"bedrock {np.nanstd(anom['held-out bedrock']):.2f} mm; shape correlation "
+          f"{np.corrcoef(linear['ice'], linear['held-out bedrock'])[0, 1]:.2f}")
+
+    # ---- the cycle itself, if there is more than one: hour-of-day composite
+    hod = (origin + hours) % 24
+    composite = None
+    if t[-1] >= 1.5 * DIURNAL:
+        composite = {k: hour_composite(hod, anom[k])[0] for k in pops}
+        n_days = len({e.date() for e in net.epochs})
+        print(f"\nhour-of-day composite over the record's days, {detrend} detrend, "
+              f"mm by UTC hour")
+        print(f"{'':18s}" + "".join(f"{h:>5d}" for h in range(24)))
+        for k in pops:
+            row = "".join("    ." if not np.isfinite(v) else f"{v:5.1f}"
+                          for v in composite[k])
+            print(f"{k:18s}{row}")
+        for k in pops:
+            c = composite[k][hod.astype(int)]
+            resid = anom[k] - c
+            print(f"  {k}: composite RMS {np.nanstd(composite[k]):.2f} mm, "
+                  f"what did not repeat {np.nanstd(resid):.2f} mm")
 
     # ---- what a 24 h harmonic makes of each window ------------------------
     win = args.window / 24.0
     windows = {"both": (0.0, t[-1])}
     if t[-1] >= win + 1 / 24:
         windows = {"day 1": (0.0, win), "day 2": (t[-1] - win, t[-1]), **windows}
-    print(f"\n{'window':8s} {'population':18s} {'amp':>8s} {'peak UTC':>9s} "
-          f"{'rate':>11s} {'resid':>8s}")
+    diurnal = t[-1] >= DIURNAL * MIN_CYCLES
+    if not diurnal:
+        # a sub-cycle record: the anomaly series above is still the product
+        # (baker_seasons.py overlays it); a 24 h harmonic of it is not
+        windows = {}
+        print(f"\n{day} spans {hours[-1]:.1f} h ({t[-1]:.2f} cycles); the 24 h "
+              f"harmonic needs {MIN_CYCLES:g} -- skipped")
+    else:
+        print(f"\n{'window':8s} {'population':18s} {'amp':>8s} {'peak UTC':>9s} "
+              f"{'rate':>11s} {'resid':>8s}")
     fits = {}
     for wname, (lo, hi) in windows.items():
         sel = (t >= lo) & (t <= hi)
@@ -169,7 +264,7 @@ def main():
             peak = np.mod(origin + ph / (2 * np.pi) * 24, 24)
             fits[wname, k] = (a, peak)
             print(f"{wname:8s} {k:18s} {a:6.2f} mm {peak:7.1f} h "
-                  f"{rate / 24:8.3f} mm/hr {sd:6.2f} mm")
+                  f"{m_per_yr(rate, 'mm'):+8.2f} m/yr {sd:6.2f} mm")
 
     # ---- figure ------------------------------------------------------------
     fig, axes = plt.subplots(2, 1, figsize=(13, 7), sharex=True,
@@ -177,15 +272,25 @@ def main():
     ax = axes[0]
     ax.fill_between(hours, q_anom[0], q_anom[1], color="0.8",
                     label="ice interquartile range (per-pixel anomalies)")
-    ax.plot(hours, anom["ice"], "k", lw=1.2, label="ice median")
+    if detrend == "periodic":
+        ax.plot(hours, linear["ice"], color="0.45", lw=0.8, ls="--",
+                label=f"ice median, linear detrend ({m_per_yr(rate_lin['ice'], 'mm'):+.1f} m/yr)")
+    ax.plot(hours, anom["ice"], "k", lw=1.2,
+            label=f"ice median ({m_per_yr(rates['ice'], 'mm'):+.1f} m/yr removed)")
     ax.plot(hours, anom["held-out bedrock"], color="tab:red", lw=1.0,
             label="held-out bedrock median")
     ax.axhline(0, color="k", lw=0.5)
     ax.set_ylabel("Trend anomaly (mm)")
-    ax.set_title(f"{day}: departure from each pixel's linear trend, population "
-                 f"medians, from {net.epochs[0]:%Y-%m-%d %H:%M} UTC", fontsize=10)
+    how = ("secular rate from same-hour differences" if detrend == "periodic"
+           else "each pixel's linear trend")
+    ax.set_title(f"{day}: departure from {how}, population medians, from "
+                 f"{net.epochs[0]:%Y-%m-%d %H:%M} UTC", fontsize=10)
     ax.legend(loc="upper left", fontsize=8)
     ax = axes[1]
+    if composite is not None:
+        ax.plot(hours, composite["ice"][hod.astype(int)], color="tab:blue",
+                lw=1.6, drawstyle="steps-mid",
+                label=f"ice hour-of-day composite over {n_days} UTC days")
     for wname, (lo, hi) in windows.items():
         if wname == "both" and len(windows) > 1:
             continue          # one-day record: the whole-record fit is the day
@@ -196,10 +301,18 @@ def main():
             ax.plot(hours[sel], a * np.cos(2 * np.pi * t[sel] - ph), color=colour,
                     lw=1.2 if k == "ice" else 0.8,
                     label=f"{k} {wname}: {a:.1f} mm, peak {peak:.1f} h UTC")
+    if not diurnal:
+        # too short for a harmonic: show the median series with its trend
+        for k, colour in (("ice", "k"), ("held-out bedrock", "tab:red")):
+            ax.plot(hours, series[k], color=colour, lw=1.2 if k == "ice" else 0.8,
+                    label=f"{k} median: {m_per_yr(rates[k], 'mm'):+.1f} m/yr")
     ax.axhline(0, color="k", lw=0.5)
-    ax.set_ylabel("24 h harmonic (mm)")
+    ax.set_ylabel("24 h harmonic (mm)" if diurnal else "Median LOS (mm)")
     ax.set_xlabel("Elapsed time (hr)")
-    ax.legend(loc="upper left", fontsize=8, ncol=2)
+    # the legend sits under the panel: with a composite and two days' fits
+    # there is no corner of the axes it would not cover
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.22), fontsize=8,
+              ncol=3, frameon=False)
     # a UTC clock along the top, every six hours
     top = axes[0].secondary_xaxis("top")
     utc = np.arange(np.ceil(origin / 6) * 6, origin + hours[-1] + 1e-9, 6)
@@ -218,12 +331,18 @@ def main():
 
     # the population series themselves, for baker_seasons.py to overlay
     npz = population_path(scene, args.antenna, args.decimate)
+    # rates in m/yr; ``detrend`` says which line the anomalies are from
     np.savez(npz, hours=hours, origin=origin,
              epoch0=np.datetime64(net.epochs[0]).astype("datetime64[s]"),
+             detrend=detrend,
              ice=anom["ice"], rock=anom["held-out bedrock"],
+             ice_linear=linear["ice"], rock_linear=linear["held-out bedrock"],
              q25=q_anom[0], q75=q_anom[1],
              ice_series=series["ice"], rock_series=series["held-out bedrock"],
-             ice_rate=rates["ice"] / 24, rock_rate=rates["held-out bedrock"] / 24)
+             ice_rate=m_per_yr(rates["ice"], "mm"),
+             rock_rate=m_per_yr(rates["held-out bedrock"], "mm"),
+             ice_rate_linear=m_per_yr(rate_lin["ice"], "mm"),
+             rock_rate_linear=m_per_yr(rate_lin["held-out bedrock"], "mm"))
     print(f"wrote {npz}")
 
 

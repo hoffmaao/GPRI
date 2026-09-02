@@ -46,7 +46,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from baker_aps import SCENES, integrate, load, split_mask          # noqa: E402
 
 from gpri.aps import epoch_screen_correction, turbulence_screen    # noqa: E402
-from gpri.diurnal import DIURNAL                                   # noqa: E402
+from gpri.diurnal import DIURNAL, MIN_CYCLES                       # noqa: E402
 from gpri.pairlsq import fit_pairs                                 # noqa: E402
 from gpri.timeseries import los_displacement                       # noqa: E402
 
@@ -61,8 +61,10 @@ def masks(stack, mean_cc, args):
     from baker_north_side import decimated_par
     from gpri.geocode import BAKERBEND1_HEADING, RadarGeometry
     from gpri.glaciers import glacier_mask, load_outlines, stable_ground_mask
+    from gpri.heading import scene_heading
+    scene = Path(SCENES.get(args.scene, args.scene))
     geom = RadarGeometry(decimated_par(stack.par, args.decimate),
-                         heading=BAKERBEND1_HEADING)
+                         heading=scene_heading(scene, default=BAKERBEND1_HEADING))
     la, lo = geom.geodetic(rows=[0, geom.shape[0] - 1],
                            cols=[0, geom.shape[1] - 1])
     bbox = (lo.min() - .02, la.min() - .02, lo.max() + .02, la.max() + .02)
@@ -87,6 +89,19 @@ def corrected_series(phase, net, n, lam, fit_m, r, mean_cc, sigma):
 def rms_mm(a, mask):
     v = a[:, mask]
     return float(np.sqrt(np.nanmean(v ** 2)) * 1000)
+
+
+def median_series_panel(ax, hours, du, dl, ice, held_m):
+    """Median LOS series of ice and held-out bedrock, both channels."""
+    for label, m, c in (("ice", ice, "#d62728"),
+                        ("held-out bedrock", held_m, "#2f7ed8")):
+        ax.plot(hours, np.nanmedian(du[:, m], axis=1) * 1000, "-", color=c,
+                lw=1.2, label=f"{label}, upper")
+        ax.plot(hours, np.nanmedian(dl[:, m], axis=1) * 1000, "--", color=c,
+                lw=1.2, label=f"{label}, lower")
+    ax.set_xlabel("Elapsed time (hr)"); ax.set_ylabel("Median LOS (mm)")
+    ax.legend(fontsize=7, ncol=2)
+    ax.set_title("median series, both channels (+ toward radar)", fontsize=10)
 
 
 def main():
@@ -132,7 +147,11 @@ def main():
         del phase
         series[ant] = d
         obs = d[1:] - d[:-1]
-        fits[ant] = fit_pairs(obs, net, periods=(DIURNAL,), weights=wts[ant])
+        # a record shorter than a cycle still gives the noise floor; the
+        # diurnal replication (sections 2-3) is skipped for it
+        diurnal = net.times[-1] >= DIURNAL * MIN_CYCLES
+        fits[ant] = (fit_pairs(obs, net, periods=(DIURNAL,), weights=wts[ant])
+                     if diurnal else None)
         print(f"  {ant}: mean coherence ice {np.nanmean(mean_cc[ice]):.3f} "
               f"rock {np.nanmean(mean_cc[held_m]):.3f}; chain + fit in "
               f"{time.time() - t0:.0f} s")
@@ -164,6 +183,28 @@ def main():
     ok = np.isfinite(ru) & np.isfinite(rl)
     print(f"  corr(upper, lower) on held-out bedrock: "
           f"{np.corrcoef(ru[ok], rl[ok])[0, 1]:.3f}")
+
+    usable = cc_maps["upper"] >= args.ice_coherence
+    nmap = np.sqrt(np.nanmean(diff ** 2, axis=0)) * 1000 / np.sqrt(2)
+    args.outdir.mkdir(parents=True, exist_ok=True)
+    out = args.outdir / f"17_antennas_{day}.png"
+    if not diurnal:
+        span = float(net.times[-1] * 24)
+        print(f"\n{day} spans {span:.1f} h ({span / 24:.2f} cycles); the diurnal "
+              f"replication needs {MIN_CYCLES:g} -- noise floor only")
+        fig, axes = plt.subplots(1, 2, figsize=(13, 4.6))
+        im = axes[0].imshow(np.where(usable, nmap, np.nan), cmap="viridis",
+                            vmin=0, vmax=np.nanpercentile(nmap[usable], 98),
+                            aspect="auto")
+        axes[0].set_title("single-antenna noise, RMS(u-l)/sqrt2", fontsize=10)
+        fig.colorbar(im, ax=axes[0], fraction=0.04, pad=0.02,
+                     label="Noise RMS (mm)")
+        axes[0].set_xlabel("Range (samples)"); axes[0].set_ylabel("Azimuth (lines)")
+        median_series_panel(axes[1], hours, du, dl, ice, held_m)
+        plt.tight_layout()
+        plt.savefig(out, dpi=140); plt.close()
+        print(f"\nwrote {out}")
+        return
 
     # ---- 2. does the diurnal fit replicate? --------------------------------
     thr = args.snr_threshold
@@ -204,7 +245,6 @@ def main():
           f"rock SNR>{thr:g} {100 * np.nanmean(sm[held_m] > thr):.1f}%")
 
     # ---- figure ------------------------------------------------------------
-    usable = cc_maps["upper"] >= args.ice_coherence
     fig, axes = plt.subplots(2, 3, figsize=(15, 7.6))
     vmax = np.nanpercentile(np.where(usable, au, np.nan), 98)
     for ax, a, t in ((axes[0, 0], au, "upper antenna: diurnal amplitude"),
@@ -214,7 +254,6 @@ def main():
         ax.set_title(t, fontsize=10)
         fig.colorbar(im, ax=ax, fraction=0.04, pad=0.02,
                      label="Diurnal amplitude (mm)")
-    nmap = np.sqrt(np.nanmean(diff ** 2, axis=0)) * 1000 / np.sqrt(2)
     im = axes[0, 2].imshow(np.where(usable, nmap, np.nan), cmap="viridis",
                            vmin=0, vmax=np.nanpercentile(nmap[usable], 98),
                            aspect="auto")
@@ -222,7 +261,7 @@ def main():
     fig.colorbar(im, ax=axes[0, 2], fraction=0.04, pad=0.02,
                  label="Noise RMS (mm)")
     for ax in axes[0]:
-        ax.set_xlabel("range sample"); ax.set_ylabel("azimuth line")
+        ax.set_xlabel("Range (samples)"); ax.set_ylabel("Azimuth (lines)")
 
     ax = axes[1, 0]
     sel = ice & np.isfinite(au) & np.isfinite(al)
@@ -240,19 +279,8 @@ def main():
     ax.set_title(f"ice, SNR>{thr:g} in both: peak time, upper minus lower",
                  fontsize=10)
 
-    ax = axes[1, 2]
-    for label, m, c in (("ice", ice, "#d62728"),
-                        ("held-out bedrock", held_m, "#2f7ed8")):
-        ax.plot(hours, np.nanmedian(du[:, m], axis=1) * 1000, "-", color=c,
-                lw=1.2, label=f"{label}, upper")
-        ax.plot(hours, np.nanmedian(dl[:, m], axis=1) * 1000, "--", color=c,
-                lw=1.2, label=f"{label}, lower")
-    ax.set_xlabel("Elapsed time (hr)"); ax.set_ylabel("Median LOS (mm)")
-    ax.legend(fontsize=7, ncol=2); ax.set_title("median series, both channels (+ toward radar)",
-                                                 fontsize=10)
+    median_series_panel(axes[1, 2], hours, du, dl, ice, held_m)
     plt.tight_layout()
-    args.outdir.mkdir(parents=True, exist_ok=True)
-    out = args.outdir / f"17_antennas_{day}.png"
     plt.savefig(out, dpi=140); plt.close()
     print(f"\nwrote {out}")
 

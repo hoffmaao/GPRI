@@ -2,7 +2,9 @@
 import numpy as np
 import pytest
 
-from gpri.diurnal import (DIURNAL, SEMIDIURNAL, atmospheric_coherence,
+from gpri.diurnal import (DIURNAL, MIN_CYCLES, SEMIDIURNAL, atmospheric_coherence,
+                          hour_composite, m_per_yr, periodic_detrend,
+                          secular_slope,
                           decompose_los, diurnal_amplitude, diurnal_phase,
                           fit_harmonics, harmonic_design, look_vector,
                           range_dependence, stable_ground_null,
@@ -268,3 +270,86 @@ def test_a_record_a_few_minutes_short_of_a_cycle_is_accepted():
     assert harmonic_design(ok, periods=(DIURNAL,)).shape[1] == 4
     with pytest.raises(ValueError, match="not separable"):
         harmonic_design(_times(hours=22.0), periods=(DIURNAL,))
+
+
+# ------------------------------------------------ secular vs periodic, any shape
+def night_trough(t):
+    """A waveform no sinusoid renders: a night-time trough, a sharp morning
+    step and a slow afternoon relaxation, repeating every day."""
+    h = t % 1.0
+    return (-12e-3 * np.exp(-((h - 0.35) / 0.12) ** 2)
+            + 5e-3 * np.exp(-((h - 0.70) / 0.20) ** 2))
+
+
+def test_same_hour_differences_see_no_periodic_part():
+    t = np.arange(0.0, 1.87, 2.0 / 1440)
+    y = 0.040 * t + night_trough(t)
+    G = np.column_stack([np.ones_like(t), t])
+    line = np.linalg.lstsq(G, y, rcond=None)[0][1]
+    slope, n = secular_slope(t, y)
+    # the line is tilted by the asymmetric waveform; the same-hour slope is not
+    assert abs(line - 0.040) > 0.001
+    assert slope == pytest.approx(0.040, abs=1e-6)
+    assert n == np.sum(t + 1.0 <= t[-1] + 1e-9)
+
+
+def test_periodic_detrend_returns_the_waveform_with_zero_mean():
+    rng = np.random.default_rng(3)
+    t = np.arange(0.0, 1.87, 2.0 / 1440)
+    y = 0.040 * t + night_trough(t) + rng.normal(0, 1e-3, t.size)
+    anom, slope, n = periodic_detrend(t, y)
+    assert slope == pytest.approx(0.040, abs=2e-4)
+    assert abs(anom.mean()) < 1e-9
+    truth = night_trough(t) - night_trough(t).mean()
+    assert np.sqrt(np.mean((anom - truth) ** 2)) < 1.5e-3
+
+
+def test_secular_slope_broadcasts_and_pairs_by_tolerance():
+    t = np.arange(0.0, 1.5, 1.0 / 24)
+    y = np.stack([0.01 * t, 0.03 * t + night_trough(t)], axis=1)
+    slope, n = secular_slope(t, y)
+    assert slope == pytest.approx([0.01, 0.03], abs=1e-9)
+    # an hourly record with a 5 min gap at the partner: paired within tolerance
+    t2 = t.copy()
+    t2[30] += 5.0 / 1440
+    s2, n2 = secular_slope(t2, 0.02 * t2)
+    assert s2 == pytest.approx(0.02, abs=1e-9) and n2 == n
+    assert secular_slope(t2, 0.02 * t2, tolerance=1e-6)[1] == n - 1
+
+
+def test_a_record_under_one_period_cannot_be_separated():
+    t = np.arange(0.0, 0.9, 1.0 / 24)
+    with pytest.raises(ValueError, match="shorter than one 24 h period"):
+        secular_slope(t, 0.01 * t)
+    # five minutes short of a day (20170713_full) is refused at the strict
+    # tolerance and admitted at the harmonic fits' allowance, with the
+    # secular rate right to the noise the short partner leaves
+    t = np.arange(0.0, 23.9 / 24 + 1e-9, 5.0 / 1440)
+    y = night_trough(t) + 0.012 * t
+    with pytest.raises(ValueError):
+        secular_slope(t, y)
+    slope, n = secular_slope(t, y, tolerance=(1 - MIN_CYCLES) * DIURNAL)
+    assert n >= 3
+    assert slope == pytest.approx(0.012, abs=0.0015)
+
+
+def test_hour_composite_is_the_repeating_waveform():
+    t = np.arange(0.0, 2.0, 2.0 / 1440)
+    origin = 6.5                                        # 06:30 UTC start
+    hod = (origin + t * 24) % 24
+    rng = np.random.default_rng(0)
+    y = night_trough(t) + rng.normal(0, 2e-3, t.size)
+    comp, count = hour_composite(hod, y)
+    assert comp.shape == (24,) and count.sum() == t.size
+    centres = (np.arange(24) + 0.5) / 24
+    truth = night_trough(centres - origin / 24)
+    assert np.nanmax(np.abs(comp - truth)) < 1.5e-3
+    # a bin no day visits stays NaN rather than becoming a number
+    comp2, count2 = hour_composite(hod[:300], y[:300])
+    assert np.isnan(comp2).sum() > 0 and count2.sum() == 300
+
+
+def test_rates_are_reported_in_metres_per_year():
+    assert m_per_yr(1.0) == pytest.approx(365.25)
+    assert m_per_yr(67.0, "mm") == pytest.approx(24.47, abs=0.01)
+    assert m_per_yr([0.0, -0.002]).tolist() == pytest.approx([0.0, -0.7305])

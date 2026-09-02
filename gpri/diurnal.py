@@ -76,6 +76,8 @@ __all__ = [
     "diurnal_phase", "range_dependence", "atmospheric_coherence",
     "stable_ground_null", "look_vector", "vertical_sensitivity",
     "decompose_los", "DIURNAL", "SEMIDIURNAL", "MIN_CYCLES",
+    "DAYS_PER_YEAR", "m_per_yr", "secular_slope", "periodic_detrend",
+    "hour_composite",
 ]
 
 #: Periods in days.
@@ -90,6 +92,103 @@ SEMIDIURNAL = 0.5
 #: that stops five minutes short of 24 h (20170713's archive: 23.9 h) is the
 #: same fit as one that reaches it; a twelve-hour one is not a fit at all.
 MIN_CYCLES = 0.98
+
+#: Every rate is reported in metres per year: the unit glacier velocities
+#: are quoted in, and the one that makes a 2 mm/h afternoon speed-up (18
+#: m/yr) comparable with the secular flow it rides on.
+DAYS_PER_YEAR = 365.25
+
+
+def m_per_yr(rate_per_day, unit="m"):
+    """A rate per day in metres (``unit="m"``) or millimetres (``"mm"``) as
+    metres per year."""
+    scale = {"m": 1.0, "mm": 1e-3}[unit]
+    return np.asarray(rate_per_day, float) * scale * DAYS_PER_YEAR
+
+
+# ------------------------------------------- secular vs periodic, any shape
+def secular_slope(times, y, period=DIURNAL, tolerance=None):
+    """Slope of the secular part of ``y`` when its periodic part has any shape.
+
+    A signal periodic in ``period`` contributes nothing to the difference
+    between an epoch and the one a period later, so on a record longer than
+    one cycle the same-hour differences are secular motion and noise alone,
+    whatever the waveform — a night-time trough with a sharp morning step as
+    much as a sinusoid.  A least-squares line, by contrast, absorbs part of
+    any periodic component that is not symmetric about the record's middle
+    (a sine over exactly one day correlates with a line at 0.78), so the
+    "trend anomaly" it leaves is the waveform with a tilt taken out of it.
+
+    ``y`` is ``(n_epochs, ...)``; ``times`` in days.  Every epoch that has a
+    partner within ``tolerance`` days of one period later (default: half
+    the median cadence) is paired; the slope is the median over pairs of
+    their difference over their separation, per pixel, in ``y``'s units per
+    day.  Returns ``(slope, n_pairs)``.  A record a few minutes short of a
+    cycle can be admitted with ``tolerance=(1 - MIN_CYCLES) * period``, the
+    same allowance the harmonic fits make: a partner ``d`` short of a period
+    leaves ``d`` times the waveform's slope in the difference, which for a
+    minutes-short record is well under the noise of the estimate.
+
+    Raises
+    ------
+    ValueError
+        If no epoch has a partner a period later: the record is shorter
+        than one cycle and the separation is not possible from the data.
+    """
+    t = np.asarray(times, float)
+    y = np.asarray(y, float)
+    if tolerance is None:
+        tolerance = 0.5 * float(np.median(np.diff(t))) if t.size > 1 else 0.0
+    j = np.searchsorted(t, t + period)
+    j = np.clip(j, 1, t.size - 1)
+    # the nearer of the two neighbours of t + period
+    near = np.where(np.abs(t[j - 1] - (t + period)) <= np.abs(t[j] - (t + period)),
+                    j - 1, j)
+    ok = np.abs(t[near] - (t + period)) <= tolerance
+    if not ok.any():
+        raise ValueError(f"record spans {(t[-1] - t[0]) * 24:.1f} h, shorter than "
+                         f"one {period * 24:g} h period: same-hour differences "
+                         f"cannot separate the secular part")
+    k, j = np.nonzero(ok)[0], near[ok]
+    dt = (t[j] - t[k]).reshape((-1,) + (1,) * (y.ndim - 1))
+    slope = np.nanmedian((y[j] - y[k]) / dt, axis=0)
+    return slope, int(k.size)
+
+
+def periodic_detrend(times, y, period=DIURNAL, tolerance=None):
+    """``y`` minus its secular line, the slope from :func:`secular_slope`.
+
+    The line's offset is chosen so the residual has zero mean over the
+    record, as a trend anomaly does.  Returns ``(anomaly, slope, n_pairs)``.
+    """
+    t = np.asarray(times, float)
+    slope, n = secular_slope(t, y, period, tolerance)
+    y = np.asarray(y, float)
+    tt = t.reshape((-1,) + (1,) * (y.ndim - 1))
+    resid = y - slope * tt
+    return resid - np.nanmean(resid, axis=0), slope, n
+
+
+def hour_composite(hours_of_day, y, bins=24, min_count=3):
+    """The waveform that repeats: ``y`` averaged by hour of day across days.
+
+    ``hours_of_day`` in ``[0, 24)``.  Returns ``(composite, count)`` over
+    ``bins`` equal bins, NaN where fewer than ``min_count`` samples fell —
+    a 24-column clock for a record of any number of days, and for two or
+    more days the shape-agnostic estimate of the diurnal cycle that the
+    residual ``y - composite[bin]`` is measured against.
+    """
+    h = np.asarray(hours_of_day, float) % 24.0
+    y = np.asarray(y, float)
+    b = np.minimum((h / 24.0 * bins).astype(int), bins - 1)
+    comp = np.full((bins,) + y.shape[1:], np.nan)
+    count = np.zeros(bins, int)
+    for i in range(bins):
+        m = b == i
+        count[i] = m.sum()
+        if count[i] >= min_count:
+            comp[i] = np.nanmean(y[m], axis=0)
+    return comp, count
 
 
 # ------------------------------------------------------------------- the fit

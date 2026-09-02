@@ -128,6 +128,10 @@ class FocusOptions:
     ati: bool = False       # along-track interferometry: no squint interpolation
     tx_antenna: str = "V"
     datatype: str = "int16"
+    #: radar position (lat, lon, alt) written in place of the raw_par's
+    #: ``geographic_coordinates`` -- for a campaign whose GPS never locked
+    #: (20180709 records 0, 0) at a surveyed site
+    position: tuple[float, float, float] | None = None
 
 
 def baker_options(**overrides) -> FocusOptions:
@@ -348,6 +352,10 @@ def geometry(raw_par, raw_data=None, opts: FocusOptions | None = None,
     """
     rp = raw_par if isinstance(raw_par, RawPar) else RawPar.load(raw_par)
     opts = opts or FocusOptions()
+    if opts.position is not None:
+        from dataclasses import replace
+        lat, lon, alt = opts.position
+        rp = replace(rp, lat=float(lat), lon=float(lon), alt=float(alt))
     if nl_tot is None:
         itemsize = np.dtype(opts.datatype).itemsize
         nl_tot = os.path.getsize(raw_data) // (2 * itemsize * (rp.ns + 1))
