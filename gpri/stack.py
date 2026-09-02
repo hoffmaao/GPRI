@@ -473,6 +473,26 @@ class SlcPairStack(_PairStack):
                                        )[:na].astype(np.complex64)
         return self._slcs[e]
 
+    def read_slc(self, e):
+        """Epoch ``e``'s SLC, cropped to the stack's common frame."""
+        return self._slc(e)
+
+    def mean_intensity(self, epochs=None, max_epochs=24):
+        """Mean ``|s|**2`` over ``epochs`` — a backscatter backdrop.
+
+        GAMMA's ``multi_look`` average (``*.ave``) is the same quantity over
+        every epoch; when a scene was focused here rather than by GAMMA there
+        is no such file, and ``max_epochs`` scenes spread evenly across the
+        stack are enough for a picture of the terrain.
+        """
+        if epochs is None:
+            n = self.n_epochs
+            epochs = np.unique(np.linspace(0, n - 1, min(n, max_epochs)).astype(int))
+        acc = np.zeros(self.shape, np.float64)
+        for e in epochs:
+            acc += np.abs(self._slc(int(e))) ** 2
+        return (acc / len(epochs)).astype(np.float32)
+
     def _smoothed_power(self, e):
         """Windowed intensity of one epoch: shared by every pair it is in."""
         if e not in self._power:

@@ -55,7 +55,8 @@ _site = _ilu.module_from_spec(_spec)
 _spec.loader.exec_module(_site)
 _site.load_site()
 SCENES = {d: _os.environ.get(f"GPRI_SCENE_{d}", "")
-          for d in ("20170827", "20170803", "20170713", "20160826")}
+          for d in ("20170827", "20170803", "20170713", "20170713_full",
+                    "20160826")}
 
 
 def open_stack(scene: Path, antenna: str = "upper", lags=(1,), looks=(1, 1)):

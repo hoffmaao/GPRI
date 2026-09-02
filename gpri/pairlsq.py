@@ -63,11 +63,9 @@ from __future__ import annotations
 
 import numpy as np
 
-__all__ = ["PairModelFit", "temporal_design", "pair_design", "fit_pairs"]
+from .diurnal import DIURNAL, MIN_CYCLES, SEMIDIURNAL  # periods in days
 
-#: Periods in days, matching :mod:`gpri.diurnal`.
-DIURNAL = 1.0
-SEMIDIURNAL = 0.5
+__all__ = ["PairModelFit", "temporal_design", "pair_design", "fit_pairs"]
 
 
 # ------------------------------------------------------------------ designs
@@ -122,7 +120,7 @@ def pair_design(times, pairs, periods=(DIURNAL,), degree=1, covariates=None,
     t = np.asarray(times, float)
     total = (t.max() - t.min()) if span is None else float(span)
     for p in periods:
-        if total < p:
+        if total < p * MIN_CYCLES:
             raise ValueError(
                 f"record spans {total * 24:.2f} h but a {p * 24:.0f} h "
                 f"harmonic was requested; amplitude and rate are not "

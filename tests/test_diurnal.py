@@ -258,3 +258,13 @@ def test_decompose_los_accounts_for_an_uplift_component():
     pure = decompose_los(np.array([0.01]), g, 270.0, uplift_ratio=0.0)[0]
     with_uplift = decompose_los(np.array([0.01]), g, 270.0, uplift_ratio=0.5)[0]
     assert with_uplift != pure
+
+
+def test_a_record_a_few_minutes_short_of_a_cycle_is_accepted():
+    """23.9 h is the same fit as 24 h (MIN_CYCLES); 22 h is not."""
+    from gpri.diurnal import MIN_CYCLES
+    assert 0.95 <= MIN_CYCLES < 1.0
+    ok = _times(hours=23.9)
+    assert harmonic_design(ok, periods=(DIURNAL,)).shape[1] == 4
+    with pytest.raises(ValueError, match="not separable"):
+        harmonic_design(_times(hours=22.0), periods=(DIURNAL,))

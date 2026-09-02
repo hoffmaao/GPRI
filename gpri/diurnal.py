@@ -75,12 +75,21 @@ __all__ = [
     "HarmonicFit", "harmonic_design", "fit_harmonics", "diurnal_amplitude",
     "diurnal_phase", "range_dependence", "atmospheric_coherence",
     "stable_ground_null", "look_vector", "vertical_sensitivity",
-    "decompose_los", "DIURNAL", "SEMIDIURNAL",
+    "decompose_los", "DIURNAL", "SEMIDIURNAL", "MIN_CYCLES",
 ]
 
 #: Periods in days.
 DIURNAL = 1.0
 SEMIDIURNAL = 0.5
+
+#: Shortest record accepted for a harmonic, as a fraction of its period.
+#: The rate and the harmonic are not separable over a fraction of a cycle,
+#: but there is no cliff at exactly one: for an evenly sampled day the
+#: rate/sine correlation is 0.78 at 1.00 cycles, 0.80 at 0.98 and 0.83 at
+#: 0.95 -- against 0.87 at 0.75 cycles and 0.99 at half a cycle.  A campaign
+#: that stops five minutes short of 24 h (20170713's archive: 23.9 h) is the
+#: same fit as one that reaches it; a twelve-hour one is not a fit at all.
+MIN_CYCLES = 0.98
 
 
 # ------------------------------------------------------------------- the fit
@@ -103,7 +112,7 @@ def harmonic_design(times, periods=(DIURNAL,), degree=1):
     t = np.asarray(times, float)
     span = t.max() - t.min() if t.size else 0.0
     for p in periods:
-        if span < p:
+        if span < p * MIN_CYCLES:
             raise ValueError(
                 f"record spans {span * 24:.2f} h but a {p * 24:.0f} h harmonic "
                 f"was requested; amplitude and secular rate are not separable "

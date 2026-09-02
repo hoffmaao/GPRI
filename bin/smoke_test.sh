@@ -1,7 +1,7 @@
 #!/bin/bash
 # Minimal end-to-end GAMMA ISP run on a single GPRI interferometric pair.
 # This is the actual answer to "can we run GAMMA here?" -- it exercises the
-# binaries, the license, and I/O against real BakerBend1 data.
+# binaries and I/O against real BakerBend1 data.
 #
 #   bin/stage_data.sh 2 && bin/smoke_test.sh
 #
@@ -35,10 +35,13 @@ echo
 echo "[1/5] create_offset"
 create_offset "$par1" "$par2" "$out/$pair.off" 1 "$GPRI_RLKS" "$GPRI_AZLKS" 0
 
-# 2. form the interferogram
+# 2. form the interferogram.  Both spectral filters off: the range shift
+#    filter needs state vectors GPRI has none of (SLC_intf skips it anyway),
+#    and the azimuth common-band filter is meaningless for a rotating
+#    antenna -- with it on, the phase of a GPRI pair is scrambled to noise.
 echo "[2/5] SLC_intf"
 SLC_intf "$slc1" "$slc2" "$par1" "$par2" "$out/$pair.off" \
-         "$out/$pair.int" "$GPRI_RLKS" "$GPRI_AZLKS" - - 1 1
+         "$out/$pair.int" "$GPRI_RLKS" "$GPRI_AZLKS" - - 0 0
 
 # 3. multi-looked intensity for the reference scene
 echo "[3/5] multi_look"

@@ -17,6 +17,7 @@ feature with ``gpri.geocode.heading_from_tiepoint`` first.
 from __future__ import annotations
 
 import argparse
+import os
 import time
 from pathlib import Path
 
@@ -79,15 +80,36 @@ def read_backdrop(scene: Path, stack: DiffStack, stride: int):
     """
     from gpri.gamma import read_image
 
-    for name in ("baker_mli_upper.ave", "baker_mli.ave"):
+    # which antenna an SLC-formed stack is looking through: the id suffix
+    ant = "u"
+    if getattr(stack, "images", None):
+        ant = Path(stack.images[0]).name.split(".")[0][-1]
+    for name in ("baker_mli_upper.ave", "baker_mli.ave", f"mli_mean_{ant}.ave"):
         if (scene / name).exists():
             path = scene / name
             break
     else:
-        mlis = sorted((scene / "mli").glob("*u.mli"))
-        if not mlis:
+        mlis = sorted((scene / "mli").glob(f"*{ant}.mli"))
+        if mlis:
+            path = mlis[0]
+        elif hasattr(stack, "mean_intensity"):
+            # focused here, not by GAMMA: no MLIs, so average some SLCs and
+            # keep the result beside them for the next script (written under
+            # a temporary name so a script running alongside never reads a
+            # half-written file)
+            from gpri.gamma import write_image
+            path = scene / f"mli_mean_{ant}.ave"
+            a = stack.mean_intensity()
+            try:
+                tmp = path.with_suffix(f".ave.{os.getpid()}")
+                write_image(tmp, a, image_format="FLOAT")
+                os.replace(tmp, path)
+            except OSError:
+                pass
+            a = a[:, ::stride][:, : stack.shape[1] // stride]
+            return 10.0 * np.log10(np.maximum(a, 1e-9))
+        else:
             return None
-        path = mlis[0]
     a = read_image(path, shape=stack.shape, image_format="FLOAT")
     a = a[:, ::stride][:, : stack.shape[1] // stride]
     return 10.0 * np.log10(np.maximum(a, 1e-9))

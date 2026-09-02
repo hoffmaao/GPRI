@@ -38,7 +38,7 @@ toward the radar** (a decrease in slant range).  See
 """
 from __future__ import annotations
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 from . import (aps, atmosphere, closure, covariance, diurnal, focus, gamma,
                geocode, glaciers,
