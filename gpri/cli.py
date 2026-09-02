@@ -6,6 +6,7 @@ instrument — an ``SLC_tab``, a ``diff0/`` full of interferograms, and the
 plus, optionally, GAMMA-format ``FLOAT`` rasters you can hand straight back to
 ``rasdt_pwr`` or ``disras``.
 
+    gpri focus      campaign scene        raw FMCW sweeps -> SLCs (both antennas)
     gpri info       scene                 what is in it, and how coherent
     gpri screens    scene                 per-pair refractivity screens
     gpri velocity   scene -o vel.npz      coherence-weighted stacked rate
@@ -14,6 +15,11 @@ plus, optionally, GAMMA-format ``FLOAT`` rasters you can hand straight back to
     gpri closure    scene                 closure-phase bias against baseline
     gpri unwrap     scene -o unw.npz      PS-interpolation unwrapping of a pair
     gpri geocode    scene vel.npz -o .tif reproject a product to a map frame
+
+``focus`` is the one command that starts before GAMMA's products exist: it
+takes a campaign directory of ``.raw`` / ``.raw_par`` acquisitions and writes
+a scene directory (``slc/``, ``SLCu_tab``, ``SLCl_tab``) that every other
+command can open, using the same processing as GAMMA's ``gpri2_proc.py``.
 
 ``velocity`` and ``timeseries`` also take ``--geotiff``, which geocodes the
 result to a local stereographic GeoTIFF in one step.  That needs a scan
@@ -460,6 +466,19 @@ def cmd_phaselink(args):
     return 0
 
 
+def cmd_focus(args):
+    from .focus import FocusOptions, focus_campaign
+    opts = FocusOptions(dec=args.dec, zero=args.zero, rmin=args.rmin,
+                        rmax=args.rmax, kbeta=args.kbeta, heading=args.heading,
+                        ati=args.ati)
+    print(f"campaign  {args.campaign}")
+    print(f"options   {opts}")
+    focus_campaign(args.campaign, args.scene, opts, workers=args.workers,
+                   overwrite=args.overwrite, limit=args.limit,
+                   raw_list=args.raw_list)
+    return 0
+
+
 # ---------------------------------------------------------------------- parser
 def build_parser():
     p = argparse.ArgumentParser(
@@ -514,6 +533,36 @@ def build_parser():
                         help="coherence floor for stable ground (default 0.6)")
         sp.add_argument("--no-atmosphere", action="store_true",
                         help="skip refractivity correction entirely")
+
+    s = sub.add_parser("focus", help="focus raw sweeps into SLCs")
+    s.add_argument("campaign", help="directory of .raw/.raw_par acquisitions, "
+                                    "searched with its raw*/ subdirectories")
+    s.add_argument("scene", help="output scene directory; SLCs go in slc/")
+    s.add_argument("--raw-list", default=None,
+                   help="only the acquisitions named in this GAMMA RAW_list")
+    s.add_argument("--dec", type=int, default=5,
+                   help="azimuth presum factor (default 5, as the BakerBend "
+                        "campaigns were processed)")
+    s.add_argument("--zero", type=int, default=300,
+                   help="samples tapered at each end of a sweep (default 300)")
+    s.add_argument("--rmin", type=float, default=300.0,
+                   help="minimum slant range in m (default 300)")
+    s.add_argument("--rmax", type=float, default=0.0,
+                   help="maximum slant range in m (default: 0.9 of the "
+                        "aliasing range)")
+    s.add_argument("--kbeta", type=float, default=3.84,
+                   help="Kaiser window beta (default 3.84)")
+    s.add_argument("--heading", type=float, default=0.0,
+                   help="GPRI_scan_heading to record, degrees (default 0)")
+    s.add_argument("--ati", action="store_true",
+                   help="no squint interpolation (along-track interferometry)")
+    s.add_argument("--workers", type=int, default=1,
+                   help="acquisitions to focus in parallel")
+    s.add_argument("--overwrite", action="store_true",
+                   help="redo acquisitions whose SLCs already exist")
+    s.add_argument("--limit", type=int, default=0,
+                   help="only the first N acquisitions")
+    s.set_defaults(func=cmd_focus)
 
     s = sub.add_parser("info", help="summarise a scene")
     common(s, window=False)

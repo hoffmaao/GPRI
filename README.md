@@ -6,8 +6,10 @@ interferometric data.
 This repository turns GAMMA's interferogram products into **line-of-sight
 displacement time series on a map**, for GPRI-II ground-based radar. It reads
 GAMMA's `.diff` / `.cc` rasters and `SLC_tab` / `itab` tables directly and does
-not need the GAMMA binaries — which matters, because the processing host has
-no GAMMA installation or license.
+not need the GAMMA binaries. It also focuses the instrument's raw FMCW sweeps
+into SLCs itself (`gpri focus`, a port of GAMMA's `gpri2_proc.py` that
+reproduces its output to float32 rounding), so campaigns that were never
+processed are usable too.
 
 ![LOS displacement, north side of Mount Baker](docs/figures/04_displacement.png)
 
@@ -19,6 +21,7 @@ beyond about 8 km the beam is in shadow behind the mountain.*
 ## What it does
 
 ```
+focus/         raw FMCW sweeps -> SLCs, as GAMMA's gpri2_proc.py does it
 gamma/         read GAMMA parameter files and binary rasters
 network/       epochs, pairs, SBAS design matrices, closure triplets
 stack/         patch-wise access to a whole diff0 directory (50 GB, memory-mapped),
@@ -228,15 +231,20 @@ cold storage (`bin/survey_campaigns.py` regenerates it). The short version:
 
 | campaign | stage | span | cycles |
 |---|---|---:|---:|
-| `20170827` | **raw only** | **44.9 h** | **1.87** |
+| `20170827` | raw → **slc** (`gpri focus`) | **44.9 h** | **1.87** |
 | `20170803` | diff | 24.1 h | 1.01 |
 | `20170713` | diff | 21.8 h | 0.91 |
 
-**`20170827` is the dataset the experiment deserves** — 44.9 hours, 1340
-acquisitions, nearly two full cycles, and an *i*→*i*+3 network that actually
-has closure. It is 582 GB of unprocessed raw, and `raw -> SLC` needs GAMMA's
-`par_GPRI2_SLC`. That makes it the single highest-value thing a GAMMA license
-would unlock. `20170803` is what is usable today, and is the default here.
+**`20170827` is the dataset the experiment deserves** — 44.9 hours, 1335
+acquisitions at 2-minute cadence, nearly two full cycles, and an *i*→*i*+3
+network that actually has closure. It was left as 582 GB of raw sweeps;
+`gpri focus` turns those into SLCs for both antennas (about 90 minutes,
+I/O-bound). Two things about it to know before using it: the scan was widened
+from −30..50° to −30..60° after the first 197 acquisitions, so the SLCs come
+in two lengths (396 and 446 lines — `SlcPairStack` crops every pair to the
+common leading block, which starts at the same azimuth), and there are two
+gaps in the cadence, 19 minutes at that geometry change and 8 minutes a day
+later. `20170803` — one cycle, processed by GAMMA — remains the default scene.
 
 ### Movies of the deformation field
 
@@ -352,6 +360,17 @@ single-reference + chain networks give 25 triangles
 multilooking creates the bias — and after a 3×15 boxcar the fitted `b(dt)`
 grows to ~0.08 rad (~0.1 mm) at 3 h with the classic fading-signal shape.
 
+On the day the analysis actually uses, the answer is different and cleaner.
+20170803's shipped network is a daisy chain with no triangles, so the pairs
+are formed from the SLCs instead: *i*→*i*+1..3 gives 2161 triangles, and
+adding the 1, 2, 3, 6 and 12 h baselines (`--lags 1 2 3 30 60 90 180 360`)
+gives 4996. In both cases the closure rms is ~1 rad (0.955 and 1.102 rad
+before correction) and the fitted `b(dt)` removes **none of it** — 0.953 and
+1.097 rad after, a 0 % reduction. That closure is dominated by decorrelation
+noise, not by a systematic short-baseline bias — and since the fitted bias
+is velocity-blind by construction, there is nothing here for a closure
+correction to change in the displacement chain, which applies none.
+
 ### Methods after Ann Chen
 
 - **PS interpolation** (`gpri.psinterp`), after Chen, Zebker & Knight (2015).
@@ -376,7 +395,7 @@ grows to ~0.08 rad (~0.1 mm) at 3 h with the classic fading-signal shape.
 
 ```bash
 pip install -e '.[all]'      # numpy, scipy + pyproj, rasterio, matplotlib
-pytest                       # 261 tests
+pytest                       # 324 tests
 ```
 
 Only `numpy` and `scipy` are required. `pyproj` and `rasterio` are needed for
@@ -397,7 +416,22 @@ gpri closure    $S                              # bias against temporal baseline
 gpri unwrap     $S --pair 0 --min-coherence 0.6 -o unw.npz
 gpri geocode    $S vel.npz --field velocity --heading 105
 
+# a raw campaign -> a scene directory (slc/, SLCu_tab, SLCl_tab), both antennas
+gpri focus      $GPRI_RAW_20170827 $GPRI_SCENE_20170827 --workers 6
+
 bin/survey_campaigns.py                         # what data exists, and how long
+```
+
+`gpri focus` defaults to the BakerBend recipe (`-d 5 -z 300 -r 300 -k 3.84`
+in `gpri2_proc.py` terms: presum 5 sweeps, 300-sample Hann taper, 300 m
+minimum range, Kaiser β 3.84). Point it at a campaign directory and it finds
+every `.raw` in it and its `raw*/` subdirectories; `--raw-list` restricts it
+to the campaign's own `RAW_list`. Output is byte-compatible with GAMMA's: the
+`.slc.par` files are identical, the samples agree to float32 rounding
+(max 2e-9 relative), and GAMMA's `multi_look` on our SLC reproduces its own
+MLI to 4e-7.
+
+```bash
 ```
 
 ```python
@@ -435,6 +469,9 @@ python examples/baker_movie.py --scene 20170803 --rgi --anomaly trend
 python examples/baker_antennas.py --scene 20170803 --decimate 16 --rgi
 # closure on the day the analysis uses: pairs formed from the SLCs
 python examples/baker_closure.py --scene 20170803 --lags 1 2 3 30 60 90 180 360 --looks 3 15
+# the two-day campaign, once `gpri focus` has written it: same scripts, --scene 20170827
+python examples/baker_aps.py --scene 20170827 --decimate 16 --sigma 5 25 --rgi --screens-on-bedrock
+python examples/baker_movie.py --scene 20170827 --rgi --anomaly mean
 ```
 
 ## The scan heading is not in the data
@@ -500,11 +537,15 @@ Three things worth knowing about it:
 
 ## GAMMA
 
-Running GAMMA itself is a separate question, and the answer is currently no:
-the compute host and data path are ready but GAMMA is not installed and there
-is no license for this node (GAMMA licenses are node-locked).
-`bin/check_env.sh` reproduces the check. None of that blocks this package,
-which reads GAMMA's output rather than calling its binaries.
+Nothing in this package calls GAMMA, but a GAMMA installation is useful for
+cross-checks and is what `gpri focus` was validated against. The 2017-07-11
+Linux distribution installs by unpacking under `/usr/local`; `config.sh` and
+`bin/check_env.sh` discover `/usr/local/GAMMA_SOFTWARE-*` (or `$GAMMA_HOME`)
+and put the `ISP`, `DIFF`, `LAT` and `DISP` binaries on the path. That
+distribution has no `par_GPRI2_SLC`: GPRI raw processing is the Python 2
+script `GPRI2-2/trunk/python/gpri2_proc.py`, which is what `gpri/focus.py`
+ports (the geometry, squint correction, Kaiser window, range scaling and
+`.slc.par` writer are the same, line for line, in Python 3 and numpy).
 
 ## License
 

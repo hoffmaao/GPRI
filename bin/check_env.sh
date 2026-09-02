@@ -73,14 +73,21 @@ if [ -n "${GAMMA_HOME:-}" ] && [ -d "$GAMMA_HOME" ]; then
 else
   fail "GAMMA not installed (GAMMA_HOME unset and no install found)"
 fi
-for b in par_GPRI2_SLC SLC_intf multi_look cc_wave rasmph_pwr create_offset; do
+for b in SLC_intf multi_look cc_wave rasmph_pwr create_offset; do
   gpri_have "$b" && pass "binary on PATH: $b" || fail "binary missing: $b"
 done
+# GPRI raw -> SLC is a python2 script in this distribution, not a binary;
+# gpri/focus.py ports it, so this is informational
+if [ -n "${GAMMA_HOME:-}" ] && [ -f "$GAMMA_HOME/GPRI2-2/trunk/python/gpri2_proc.py" ]; then
+  pass "gpri2_proc.py present (gpri focus is the python3 port)"
+else
+  warn "gpri2_proc.py not found (not needed: gpri focus focuses raw)"
+fi
 if gpri_have SLC_intf; then
-  if SLC_intf 2>&1 | head -3 | grep -qi 'usage'; then
-    pass "SLC_intf executes (license OK)"
+  if SLC_intf 2>&1 | head -6 | grep -qi 'usage'; then
+    pass "SLC_intf executes"
   else
-    fail "SLC_intf present but did not run -- check license / linker (ldd \$(which SLC_intf))"
+    fail "SLC_intf present but did not run -- check the linker (ldd \$(which SLC_intf))"
   fi
 fi
 

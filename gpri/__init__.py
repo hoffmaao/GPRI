@@ -3,10 +3,13 @@
 The package consumes GAMMA products directly — the ``.diff`` / ``.cc`` rasters
 and ``SLC_tab`` / ``itab`` tables that GAMMA's ISP and DIFF modules write — and
 carries them through to a line-of-sight displacement time series, in a map
-projection, without needing the GAMMA binaries themselves.
+projection, without needing the GAMMA binaries themselves.  Raw campaigns are
+covered too: :mod:`gpri.focus` turns the instrument's FMCW sweeps into SLCs
+the way GAMMA's ``gpri2_proc.py`` does.
 
 Pipeline
 --------
+0.  :mod:`gpri.focus`         raw FMCW sweeps to SLCs (GAMMA's gpri2_proc.py)
 1.  :mod:`gpri.gamma`         read GAMMA parameter files and binary rasters
 2.  :mod:`gpri.network`       epochs, pairs, design matrices, closure triplets
 3.  :mod:`gpri.stack`         patch-wise access to a whole ``diff0`` directory,
@@ -35,15 +38,16 @@ toward the radar** (a decrease in slant range).  See
 """
 from __future__ import annotations
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
-from . import (aps, atmosphere, closure, covariance, diurnal, gamma, geocode,
-               glaciers,
+from . import (aps, atmosphere, closure, covariance, diurnal, focus, gamma,
+               geocode, glaciers,
                network, pairlsq, phaselink, psinterp, refractivity, stack,
                timeseries)
 from .aps import epoch_screen_correction, invert_screens, turbulence_screen
 from .closure import correct_bias, estimate_bias
 from .diurnal import diurnal_amplitude, fit_harmonics, range_dependence
+from .focus import FocusOptions, focus as focus_raw, focus_campaign
 from .gamma import ParFile, read_image, read_slc, write_image
 from .geocode import RadarGeometry, geocode as geocode_image, local_stereographic
 from .network import Network, read_itab, read_slc_tab
@@ -56,7 +60,8 @@ from .timeseries import invert_network, los_displacement, stack_velocity
 
 __all__ = [
     "__version__",
-    "aps", "atmosphere", "closure", "covariance", "diurnal", "gamma", "geocode",
+    "aps", "atmosphere", "closure", "covariance", "diurnal", "focus", "gamma",
+    "geocode",
     "network", "pairlsq", "phaselink", "psinterp", "refractivity", "stack",
     "timeseries",
     "ParFile", "read_image", "read_slc", "write_image",
@@ -68,6 +73,7 @@ __all__ = [
     "invert_screens", "epoch_screen_correction", "turbulence_screen",
     "glaciers",
     "fit_pairs",
+    "FocusOptions", "focus_raw", "focus_campaign",
     "fit_harmonics", "diurnal_amplitude", "range_dependence",
     "select_ps", "unwrap_with_ps",
     "invert_refractivity", "refractivity_of",

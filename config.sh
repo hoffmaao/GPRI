@@ -22,7 +22,8 @@ fi
 # ------------------------------------------------------------------- storage
 # Root of the GPRI data holdings.  The mount may be on-demand (automounted);
 # scripts that touch it allow for a slow first access.
-export GPRI_DATA_ROOT="${GPRI_DATA_ROOT:-}"
+# Falls back to the first of GPRI_SURVEY_ROOTS.
+export GPRI_DATA_ROOT="${GPRI_DATA_ROOT:-${GPRI_SURVEY_ROOTS%%:*}}"
 
 # Local scratch.  GAMMA is I/O heavy; staging to fast local disk beats
 # working across a network mount that the tools will re-read many times.

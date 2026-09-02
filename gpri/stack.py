@@ -18,7 +18,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .gamma import ParFile, map_image, read_image
+from .gamma import dtype_for, ParFile, map_image, read_image
 from .network import Network, parse_epoch
 
 __all__ = ["DiffStack", "SlcPairStack", "find_pairs", "SCENE_ID_RE",
@@ -351,8 +351,26 @@ class SlcPairStack(_PairStack):
                  image_format=None):
         self.images = [Path(p) for p in images]
         slc_par = par if isinstance(par, ParFile) else ParFile.load(par)
-        self.slc_par = slc_par
         self.image_format = image_format or slc_par.image_format
+        # Every SLC must be the same width, but a campaign whose sweep was
+        # widened part-way (20170827: -30..50 deg for six hours, -30..60 deg
+        # for the rest) has two line counts.  The scans start at the same
+        # angle, so the stack is the common leading block: the longer images
+        # are cropped at the end when read.
+        nr = slc_par.range_samples
+        row_bytes = nr * dtype_for(self.image_format).itemsize
+        lines = []
+        for im in self.images:
+            size = im.stat().st_size
+            if size == 0 or size % row_bytes:
+                raise ValueError(f"{im}: not a whole number of {nr}-sample lines")
+            lines.append(size // row_bytes)
+        self._lines = lines
+        if min(lines) != max(lines):
+            e = {k: list(v) for k, v in slc_par.entries.items()}
+            e["azimuth_lines"] = [str(min(lines))]
+            slc_par = ParFile(e, slc_par.header)
+        self.slc_par = slc_par
         self.lags = tuple(int(k) for k in lags)
         if not self.lags or min(self.lags) < 1:
             raise ValueError("lags must be positive epoch offsets")
@@ -449,9 +467,10 @@ class SlcPairStack(_PairStack):
                 oldest = next(iter(self._slcs))
                 self._slcs.pop(oldest)
                 self._power.pop(oldest, None)
-            self._slcs[e] = read_image(self.images[e], shape=self.slc_par.shape,
+            na, nr = self.slc_par.shape
+            self._slcs[e] = read_image(self.images[e], shape=(self._lines[e], nr),
                                        image_format=self.image_format
-                                       ).astype(np.complex64)
+                                       )[:na].astype(np.complex64)
         return self._slcs[e]
 
     def _smoothed_power(self, e):

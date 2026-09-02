@@ -280,3 +280,34 @@ def test_cli_opens_slc_formed_stacks(slc_scene, capsys):
     import pytest as _pt
     with _pt.raises(SystemExit):
         _open(p.parse_args(["info", str(slc_scene)]))
+
+
+def test_slc_pairs_crop_a_widened_sweep(slc_scene):
+    """A campaign whose sweep was widened part-way keeps the common lines.
+
+    20170827 scanned -30..50 deg for six hours and -30..60 deg after that;
+    the scans start at the same angle, so the longer images are cropped at
+    the end and the stack is the leading block every epoch has.
+    """
+    from gpri.gamma import read_image, write_image
+    extra = 3
+    long_id = IDS[2]
+    path = slc_scene / "slc" / f"{long_id}.slc"
+    short = read_image(path, shape=BIG, image_format="FCOMPLEX")
+    tail = np.ones((extra, BIG[1]), dtype=np.complex64)
+    write_image(path, np.vstack([short, tail]))
+    par = (slc_scene / "slc" / f"{long_id}.slc.par").read_text()
+    assert f"azimuth_lines:    {BIG[0]}" in par
+    (slc_scene / "slc" / f"{long_id}.slc.par").write_text(
+        par.replace(f"azimuth_lines:    {BIG[0]}", f"azimuth_lines:    {BIG[0] + extra}"))
+
+    st = SlcPairStack.from_tab(slc_scene / "SLCu_tab")
+    assert st.shape == BIG and st.slc_par.azimuth_lines == BIG[0]
+    a = read_image(slc_scene / "slc" / f"{IDS[1]}.slc", shape=BIG, image_format="FCOMPLEX")
+    np.testing.assert_allclose(st.read_pair(1), a * np.conj(short), rtol=1e-6)
+
+    # a file that is not a whole number of lines is refused
+    with open(path, "ab") as f:
+        f.write(b"\0" * 4)
+    with pytest.raises(ValueError, match="whole number"):
+        SlcPairStack.from_tab(slc_scene / "SLCu_tab")
