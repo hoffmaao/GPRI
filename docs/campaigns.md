@@ -27,8 +27,9 @@ campaign spans and whether it is processed far enough to use.
 balcony and short field tests under an hour, listed by the survey tool but not
 useful for this question.
 
-Stage means: **raw** — FMCW sweeps only, needs GAMMA `par_GPRI2_SLC`; **slc** —
-focused complex images, which `gpri.stack.SlcPairStack` turns into
+Stage means: **raw** — FMCW sweeps only, which `gpri focus` turns into SLCs
+for both antennas (a port of GAMMA's `gpri2_proc.py`, validated to float32
+rounding against the 20170803 archive); **slc** — focused complex images, which `gpri.stack.SlcPairStack` turns into
 interferograms and coherence on demand (either antenna, any lag set, any
 multilook — validated against GAMMA's own `.diff`/`.cc`); **diff** —
 interferograms already formed by GAMMA.  For this package **slc** and
@@ -38,9 +39,9 @@ come from the SLCs.
 
 ## What this means
 
-**The best dataset for the diurnal question is `20170827`, and it is not
-usable yet.** It spans 44.9 hours — 1.87 diurnal cycles, 1340 acquisitions at
-2-minute cadence — which is worth far more than one cycle for three reasons:
+**The best dataset for the diurnal question is `20170827`.** It spans 44.9
+hours — 1.87 diurnal cycles, 1335 acquisitions at 2-minute cadence — which is
+worth far more than one cycle for three reasons:
 
 1. A single cycle cannot cleanly separate the diurnal amplitude from the
    secular flow rate; they are nearly degenerate over exactly one period. Two
@@ -51,15 +52,29 @@ usable yet.** It spans 44.9 hours — 1.87 diurnal cycles, 1340 acquisitions at
 3. The phase (hour of peak) is the diagnostic quantity for drainage-system
    behaviour, and its uncertainty falls sharply with a second cycle.
 
-It is **582 GB of raw data** with `SLCu_tab`/`SLCl_tab`/`itab_mr` already
-written, pointing at an SLC directory that does not exist — so it was set up
+It was left as **582 GB of raw data** with `SLCu_tab`/`SLCl_tab`/`itab_mr`
+already written, pointing at an SLC directory that does not exist — set up
 for processing and never processed, or the SLCs were deleted. Its `itab_mr`
 is an *i*→*i*+3 network, not a daisy chain, so unlike 20170803 it has closed
 triangles: `gpri closure` works on it, and the pair-domain least squares in
 `gpri.pairlsq` gains real sensitivity from the longer combinations.
 
-Getting it usable needs `par_GPRI2_SLC`, which means installing GAMMA. **This
-is the single highest-value thing a GAMMA license would unlock.**
+`gpri focus <campaign> <scene> --workers 6` writes the scene (2670 SLCs,
+~90 minutes, limited by how fast the raw can be read). What the raw actually
+holds, which the archive's own `RAW_list` (44 entries) does not say:
+
+- **1335 acquisitions** in three subdirectories: `raw/` (197), `raw2/` (558)
+  and `raw3/` (580).
+- **Two scan geometries.** The first 197 sweep −30..50° (17.0 s capture, 396
+  image lines, as on 20170803); from 06:42 UTC on the 28th the scan is
+  −30..60° (19.0 s, 446 lines). Both start at the same azimuth, so
+  `SlcPairStack` crops each pair to the common 396-line block and every
+  script runs unchanged across the change.
+- **Two gaps**: 19.3 minutes at the geometry change (Aug 28 06:22 → 06:42)
+  and 7.7 minutes on the 29th (01:16 → 01:23). The network stays connected;
+  those two pairs just have longer baselines.
+- 219 of the `raw_par` files carry no GPS fix; the radar position for
+  geocoding comes from the first acquisition, which does.
 
 **What is usable today** is `20170803`: 24.1 h at 2-minute cadence, processed
 to interferograms, and the default scene for this repository. One cycle
