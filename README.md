@@ -232,16 +232,30 @@ cannot show the signal repeats — that remains 20170827's job.
 ### Which campaign to use
 
 [`docs/campaigns.md`](docs/campaigns.md) inventories all 25 GPRI campaigns on
-cold storage (`bin/survey_campaigns.py` regenerates it). The short version:
+cold storage (`bin/survey_campaigns.py` regenerates it), plus two that were
+never on those volumes at all. The short version:
 
 | campaign | stage | span | cycles |
 |---|---|---:|---:|
+| `20190719` | raw → **slc** (`gpri focus`) | **45.7 h** | **1.90** |
 | `20170827` | raw → **slc** (`gpri focus`) | **44.9 h** | **1.87** |
+| `20180808` | raw → **slc** (`gpri focus`) | **41.4 h** | **1.73** |
+| `20170803_full` | raw → slc (`gpri focus`) | 24.2 h | 1.01 |
 | `20170803` | diff | 24.1 h | 1.01 |
 | `20170713_full` | raw → slc (`gpri focus`) | 23.9 h | 0.996 |
 | `20170713` | diff | 21.8 h | 0.91 |
 | `20170913` | raw → slc (`gpri focus`) | 14.5 h | 0.61 |
 | `20180709` | raw → slc (`gpri focus`) | 6.9 h | 0.29 |
+| `20160826_full` | raw → slc (`gpri focus`) | 3.7 h | 0.15 |
+
+**Two of the three two-cycle campaigns came off a backup of the field
+computer**, not off the analysis volumes: `20180808`, 1,229 acquisitions from
+2018-08-09 00:03 to 08-10 17:25 UTC, and `20190719`, 1,140 acquisitions from
+2019-07-19 17:47 to 07-21 15:28 UTC — recorded, as it happens, while that
+backup was being made. GAMMA had focused `20180808` out to 12.5 km; both are
+refocused here across the full swath so that every campaign is processed the
+same way. The same backup settles a negative: there is no GPRI data from late
+August or September 2019, whatever the field plan intended.
 
 **`20170827` is the dataset the experiment deserves** — 44.9 hours, 1335
 acquisitions at 2-minute cadence, nearly two full cycles, and an *i*→*i*+3
@@ -252,7 +266,17 @@ from −30..50° to −30..60° after the first 197 acquisitions, so the SLCs co
 in two lengths (396 and 446 lines — `SlcPairStack` crops every pair to the
 common leading block, which starts at the same azimuth), and there are two
 gaps in the cadence, 19 minutes at that geometry change and 8 minutes a day
-later. `20170803` — one cycle, processed by GAMMA — remains the default scene.
+later.
+
+`20170803` — one cycle, processed by GAMMA — remains the default scene, and
+`20170803_full` is that same day refocused from its 723 raw acquisitions. The
+refocus was not about the SLCs: it is that `bin/run_scene.sh` skips both
+geometry steps for a scene that ships a GAMMA `diff0`, so the GAMMA scene
+alone had no azimuth-offset sidecar and a heading measured from two SLCs
+instead of eight. Refocused, co-registered and re-headed, the day gives
++30.95 m/yr on ice against +31.2 from GAMMA's own SLCs, and +24.29 against
++24.5 by the linear fit — 0.3 m/yr apart, which is the closest thing to an
+end-to-end validation of `gpri focus` this archive can offer.
 
 `20170713` as GAMMA shipped it stops at 21.8 h, and the harmonic fits refuse
 it — over 0.91 of a cycle amplitude and rate are not separable. Its raw
@@ -263,7 +287,7 @@ rate/harmonic correlation has no cliff at exactly one period (0.78 at 1.00
 cycles, 0.80 at 0.98, against 0.87 at 0.75 and 0.99 at half a cycle for an
 epoch-domain fit; near zero either side of one cycle in the pair domain).
 
-The last two campaigns are sub-cycle, and the scripts say so and fit rates
+The last three campaigns are sub-cycle, and the scripts say so and fit rates
 instead of harmonics. `20170913` is misnamed: its 437 acquisitions were made
 on **2017-09-15**, 05:57–20:29 UTC, 14.5 h at 2-minute cadence, one
 geometry throughout. `20180709` is 203 raw acquisitions on 2018-07-10, of
@@ -271,7 +295,11 @@ which six are set-up scans (two at 02:36 UTC on the 2017 geometry, four at
 12:08 sweeping −88° to +1°) and 197 are the campaign proper, 13:35–20:30 UTC
 — **6.9 h**, not the 17.9 h the file times span. It is also the campaign
 whose mount turned during the first five hours; see
-["Did the tripod hold?"](#did-the-tripod-hold).
+["Did the tripod hold?"](#did-the-tripod-hold). `20160826_full` is the oldest
+campaign that survives at all: of 52 raw acquisitions in the archive, 44
+focus — seven are zero-byte files and one is truncated — giving 3.7 h on the
+evening of 2016-08-26 at 5-minute cadence, on a shorter chirp and a narrower
+scan than any later campaign.
 
 ### Two days: does the diurnal repeat?
 
@@ -391,7 +419,7 @@ and farther, so a stratified atmospheric term the rock cannot see is not
 excluded by the rock being flat. The two antennas cannot help with that —
 they share the atmosphere — and the next real control is meteorology.
 
-### Five campaigns on one clock
+### Eight campaigns on one clock
 
 `20170713_full` — the July archive refocused to its full 23.9 h — goes
 through the same chain (`bin/run_scene.sh 20170713_full`, 271 epochs at
@@ -417,9 +445,38 @@ is with each campaign's measured heading:
 | … held-out rock median (p16–p84) | +1.4 mm (−27..+30) | −1.2 mm (−27..+28) | +1.8 mm (−42..+45) | +0.3 mm (−3..+3) | −1.1 mm (−17..+18) |
 | trend-anomaly RMS, ice / rock | 4.1 / 0.3 mm | 10.9 / 0.7 mm | 7.9 / 0.5 mm | 1.3 / 0.2 mm | 2.5 / 0.2 mm |
 
+The three campaigns processed later — the August 2017 day refocused from raw,
+and the two recovered from the backup — on the same rows:
+
+| | `20170803_full` | `20180808` | `20190719` | `20160826_full` |
+|---|---:|---:|---:|---:|
+| span, pairs, cadence | 24.2 h, 722, 2 min | 41.4 h, 1226, 2 min | 45.7 h, 1136, 2 min | 3.7 h, 43, 5 min |
+| coherence-only reference on glacier (RGI) | 65 % | 63 % | 67 % | 77 % |
+| held-out rock (px) | 3,817 | 4,432 | 4,419 | 2,880 |
+| ladder A → D, held-out rock | 26.9 → 28.1 mm (104 %) | 40.4 → 40.1 mm (99 %) | 37.0 → 37.0 mm (100 %) | **3.8** → 4.0 mm (105 %) |
+| pair-domain diurnal, ice / rock | 17.9 / 6.9 mm (2.6) | 15.3 / 7.1 mm (2.2) | 7.9 / 4.6 mm (1.7) | — |
+| ice above SNR 3 / rock false alarms | 9.6 % / 1.2 % | 8.7 % / 0.8 % | 19.1 % / 9.2 % | — |
+| SNR 3 in both antennas, ice / rock | 2.6 % / 0.1 % | 3.1 % / 0.1 % | 13.7 % / 3.1 % | — |
+| single-antenna noise / common-mode, rock | 16.7 / 16.0 mm | 26.5 / 21.0 mm | 21.7 / 20.0 mm | 3.2 / 0.9 mm |
+| secular LOS rate, ice / rock (same-hour differences; linear fit where the record is under a day) | +31.0 / −1.4 m/yr | +29.8 / +0.2 m/yr | +16.3 / +0.4 m/yr | +9.1 / +0.6 m/yr |
+| … by the linear fit | +24.3 / −0.5 m/yr | +26.3 / +0.2 m/yr | +16.4 / +0.4 m/yr | — |
+| cumulative LOS at the end, ice median (p16–p84) | +89 mm (+7..+207) | +120 mm (+12..+268) | +71 mm (−53..+273) | +6 mm (−4..+23) |
+| … held-out rock median (p16–p84) | −3.0 mm (−27..+25) | +2.4 mm (−43..+48) | +2.4 mm (−41..+41) | −0.0 mm (−1..+1) |
+| trend-anomaly RMS, ice / rock | 10.9 / 0.8 mm | 12.3 / 0.3 mm | 3.7 / 0.5 mm | 1.0 / 0.1 mm |
+
+What the second table adds, before those three: on `20190719` the pair-domain
+diurnal finally clears SNR 3 over a fifth of the ice — and the held-out rock
+clears it over a tenth, so the ratio is 2.1 and most of what passed the
+threshold is that day's atmosphere, not the glacier. It is also the one place
+in the whole set where the turbulence screen earns its keep: the `20190719`
+lower antenna is 83 % of plain referencing at stage D, against 99–110 %
+everywhere else. And the two-cycle campaigns keep the same-hour estimator in
+work — 522 pairs of epochs a day apart on `20180808`, 509 on `20190719`,
+against 19 on the one-day `20170803_full`.
+
 Three things the table says. First, the atmospheric ladder never gains on
-true rock once the heading is right: stage D is 103–110 % of plain
-referencing on every campaign (the 88 % July showed with the 105° mask was
+true rock once the heading is right: stage D is 99–110 % of plain
+referencing on every campaign but one (the 88 % July showed with the 105° mask was
 the mask, not the turbulence screen — see
 [`docs/atmosphere.md`](docs/atmosphere.md)). Second, the per-pixel diurnal
 stays a null on all three full-cycle days — ice/rock ratios of 1.6, 2.5 and
@@ -508,6 +565,47 @@ atmosphere stratified in a way rock at rock heights cannot register — is
 the question the next campaign has to be designed to answer, with
 meteorology on the glacier.
 
+### Does it repeat between years?
+
+Three campaigns now run past one diurnal cycle, in three different years, so
+the question the two August 2017 days could only pose can be put to the record
+as a whole. `examples/baker_composite.py` stacks each campaign's UTC days into
+an hour-of-day composite (`gpri.diurnal.hour_composite`: the mean at each hour,
+no waveform assumed) and measures what is left of each day once that composite
+is taken out.
+
+![hour-of-day composites](docs/figures/21_composite.png)
+
+| campaign | days | secular removed | composite RMS | did not repeat | trough (UTC) | rock composite |
+|---|---:|---:|---:|---:|---:|---:|
+| `20170827` | 2 | +14.1 m/yr | 5.69 mm | 5.33 mm | 08 h, −10.2 mm | 0.37 mm |
+| `20180808` | 2 | +29.8 m/yr | 10.37 mm | 7.09 mm | 14 h, −15.2 mm | 0.31 mm |
+| `20190719` | 3 | +16.3 m/yr | 2.90 mm | 2.54 mm | 19 h, −6.1 mm | 0.47 mm |
+
+The ice composite beats its own bedrock composite by 6 to 30 times, so what
+repeats is not the reference wandering. But in every campaign the part that
+does **not** repeat is nearly as large as the part that does — 5.3 against
+5.7 mm, 7.1 against 10.4, 2.5 against 2.9 — the same warning the ±5 m/yr of
+the section above gives in the rate domain, now in the displacement domain:
+half of what one day shows at a given hour will not be there the next day.
+
+Across campaigns the August days do line up. On the hourly clock of
+`baker_seasons.py`, 2017-08-04 correlates with 2018-08-09 at 0.57 and with
+2018-08-10 at 0.73, and 2017-08-29 with 2018-08-09 at 0.52 — four August days
+in two years, every one of them with its trough between 05 and 15 UTC, local
+night into late morning. July does not join in: 2019-07-20 sits at −0.74
+against 2018-08-09 and −0.20 against 2017-08-04, and the July composite is a
+third the size of August's. Whether that is seasonal — August melt against
+July — or is three campaigns' weather is not something eight campaigns can
+settle. It is, though, the first statement in this project that survives a
+change of year.
+
+Two cautions before it is quoted. `20180808`'s composite after 17:30 UTC rests
+on one day, because the record ends at 17:25 on the second, and the band in
+the figure vanishes there to say so. And that campaign's second day reaches
+−30 mm at 14 UTC, the largest excursion anywhere in the data set, which wants
+checking against that day's coherence before it is called ice.
+
 ### Movies of the deformation field
 
 `examples/baker_movie.py` renders the corrected LOS field as an MP4 in the
@@ -552,6 +650,30 @@ map frame — backscatter backdrop, real UTC clock, every processed campaign:
   [trend anomaly](docs/figures/14_los_movie_anomtrend_20170713_full.mp4),
   [periodic anomaly](docs/figures/14_los_movie_anomperiodic_20170713_full.mp4)),
   271 frames at 5-minute cadence.
+- the same five for the two campaigns off the backup —
+  `20180808` ([cumulative](docs/figures/14_los_movie_20180808.mp4),
+  [2 h rate](docs/figures/14_los_movie_rate2h_20180808.mp4),
+  [mean anomaly](docs/figures/14_los_movie_anommean_20180808.mp4),
+  [trend anomaly](docs/figures/14_los_movie_anomtrend_20180808.mp4),
+  [periodic anomaly](docs/figures/14_los_movie_anomperiodic_20180808.mp4)),
+  1227 frames over 41.4 h, and
+  `20190719` ([cumulative](docs/figures/14_los_movie_20190719.mp4),
+  [2 h rate](docs/figures/14_los_movie_rate2h_20190719.mp4),
+  [mean anomaly](docs/figures/14_los_movie_anommean_20190719.mp4),
+  [trend anomaly](docs/figures/14_los_movie_anomtrend_20190719.mp4),
+  [periodic anomaly](docs/figures/14_los_movie_anomperiodic_20190719.mp4)),
+  1137 frames over 45.7 h — the two longest records in the set
+- and for `20170803_full`
+  ([cumulative](docs/figures/14_los_movie_20170803_full.mp4),
+  [2 h rate](docs/figures/14_los_movie_rate2h_20170803_full.mp4),
+  [mean anomaly](docs/figures/14_los_movie_anommean_20170803_full.mp4),
+  [trend anomaly](docs/figures/14_los_movie_anomtrend_20170803_full.mp4),
+  [periodic anomaly](docs/figures/14_los_movie_anomperiodic_20170803_full.mp4))
+
+The three sub-cycle campaigns — `20170913`, `20180709`, `20160826_full` — have
+four views each and no periodic one; the step prints why (`20180709 spans
+6.9 h: the same-hour rate needs a day`) rather than writing a product it
+cannot define.
 
 Corrections are the validated recipe (reference + drift removal + turbulence,
 no per-pair screens), referenced to **true rock** — coherent pixels outside
@@ -771,6 +893,8 @@ python examples/baker_population.py --scene 20170827 --decimate 16 --rgi
 # every processed day on one UTC clock (needs baker_population.py run per scene)
 python examples/baker_seasons.py --scenes 20170713_full 20170803 20170827
 python examples/baker_seasons.py --detrend linear   # the same on per-pixel linear trends
+# what repeats hour to hour, for the campaigns that ran more than one day
+python examples/baker_composite.py --scenes 20170827 20180808 20190719
 ```
 
 `bin/run_scene.sh <scene> [upper|lower|both]` runs that whole chain for one
@@ -869,6 +993,14 @@ block's, and all 6.9 h of the campaign sit on one grid. The sub-line
 sidecars of the 2017 campaigns are applied the same way; at a tenth of a
 line the ramp zeroes nothing and costs nothing, and the grid is honest to
 the hundredth of a degree.
+
+The two campaigns recovered later say the 2018 mount was not an accident of
+that one day: `20180808` turns 2.33° (11.7 lines) and `20190719` 4.47°
+(22.4 lines), and both do it inside the first six hours after set-up and
+then hold — to 0.02° over the remaining 35 h and 0.06° over the remaining
+40 h respectively. A tripod on this glacier settles by degrees and then
+stops; `20180709` only looks like the outlier because its whole campaign was
+6.9 h long, so the settling *was* the campaign.
 
 ## Sign convention
 

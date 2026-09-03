@@ -54,9 +54,9 @@ _spec = _ilu.spec_from_file_location(
 _site = _ilu.module_from_spec(_spec)
 _spec.loader.exec_module(_site)
 _site.load_site()
-SCENES = {d: _os.environ.get(f"GPRI_SCENE_{d}", "")
-          for d in ("20170827", "20170803", "20170713", "20170713_full",
-                    "20160826", "20170913", "20180709")}
+# every campaign site.env names, so a scene added there needs no edit here
+SCENES = {k[len("GPRI_SCENE_"):]: v for k, v in _os.environ.items()
+          if k.startswith("GPRI_SCENE_") and v}
 
 
 def open_stack(scene: Path, antenna: str = "upper", lags=(1,), looks=(1, 1)):
