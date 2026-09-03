@@ -466,8 +466,10 @@ def find_raw(campaign_dir, raw_list=None) -> list[tuple[Path, Path]]:
 
     Every ``*.raw`` (or ``*.raw.gz`` — backups gzip some sweeps, and the
     reader decompresses on the fly) in the directory and its ``raw*/``
-    subdirectories is taken, the plain file winning when both exist and
-    macOS ``._`` sidecars ignored.  A
+    subdirectories is taken, and macOS ``._`` sidecars ignored.  A scene id
+    appears exactly once however many copies of it the tree holds — they
+    focus to the same pair of output paths — with a plain ``.raw`` winning
+    over a ``.raw.gz`` wherever either sits.  A
     GAMMA ``RAW_list`` (paths relative to the campaign directory, ``raw
     raw_par`` per line) restricts that to the acquisitions it names — the
     ones in the archive list only the subset somebody once set up to
@@ -488,7 +490,7 @@ def find_raw(campaign_dir, raw_list=None) -> list[tuple[Path, Path]]:
             for r in d.glob(pattern):
                 if r.name.startswith("._"):    # AppleDouble stub, not a sweep
                     continue
-                raws[(d, scene_id(r))] = r
+                raws[scene_id(r)] = r
     raws = sorted(raws.values(), key=lambda p: p.name)
     return [(r, r.with_name(scene_id(r) + ".raw_par")) for r in raws]
 

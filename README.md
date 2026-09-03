@@ -176,8 +176,8 @@ correlation between ice displacement and slant range is **+0.06**, so this is
 not the epoch screens extrapolating a ramp over the ice; it is spatially
 organised motion where the inventory says there is a glacier. A day of
 ~90 mm LOS is the right order for Coleman and Roosevelt flow projected onto a
-near-horizontal look direction. The same table for the other four campaigns
-is under ["Five campaigns on one clock"](#five-campaigns-on-one-clock).
+near-horizontal look direction. The same rows for the other eight scenes are
+under ["Eight campaigns on one clock"](#eight-campaigns-on-one-clock).
 
 This is the secular signal, and it is the part the old ice-contaminated
 reference was actively destroying. The diurnal remains the harder question
@@ -445,8 +445,9 @@ is with each campaign's measured heading:
 | … held-out rock median (p16–p84) | +1.4 mm (−27..+30) | −1.2 mm (−27..+28) | +1.8 mm (−42..+45) | +0.3 mm (−3..+3) | −1.1 mm (−17..+18) |
 | trend-anomaly RMS, ice / rock | 4.1 / 0.3 mm | 10.9 / 0.7 mm | 7.9 / 0.5 mm | 1.3 / 0.2 mm | 2.5 / 0.2 mm |
 
-The three campaigns processed later — the August 2017 day refocused from raw,
-and the two recovered from the backup — on the same rows:
+The four scenes processed later — the August 2017 day refocused from raw, the
+two campaigns recovered from the backup, and the 2016 evening refocused the
+same way — on the same rows:
 
 | | `20170803_full` | `20180808` | `20190719` | `20160826_full` |
 |---|---:|---:|---:|---:|
@@ -633,8 +634,8 @@ map frame — backscatter backdrop, real UTC clock, every processed campaign:
   sinusoid absorbs part of the waveform; the same-hour secular rate of the
   section above cannot, so every pixel's linear rate is corrected by the
   tilt measured on the population median and the anomaly closes on itself
-  at the two ends of the day. Needs a record of a day or more; the two
-  short campaigns skip it.
+  at the two ends of the day. Needs a record of a day or more; the three
+  sub-cycle campaigns skip it.
 - the same five for `20170827`
   ([cumulative](docs/figures/14_los_movie_20170827.mp4),
   [2 h rate](docs/figures/14_los_movie_rate2h_20170827.mp4),
