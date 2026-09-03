@@ -99,17 +99,17 @@ def main():
     if not campaigns:
         sys.exit("no campaign has enough days; run baker_population.py first")
 
-    print(f"\nhour-of-day composite, {args.antenna} antenna, "
-          f"{campaigns[0][4]} detrend")
-    print(f"{'campaign':14s} {'days':>5s} {'secular':>10s} {'composite':>10s} "
-          f"{'not repeated':>13s} {'trough UTC':>11s} {'depth':>8s} {'rock':>9s}")
+    print(f"\nhour-of-day composite, {args.antenna} antenna")
+    print(f"{'campaign':14s} {'days':>5s} {'detrend':>9s} {'secular':>10s} "
+          f"{'composite':>10s} {'not repeated':>13s} {'trough UTC':>11s} "
+          f"{'depth':>8s} {'rock':>9s}")
     rows = {}
     for name, days, ice_rate, rock_rate, how in campaigns:
         ci, si, ri = composite_of(days, 2)
         cr, sr, rr = composite_of(days, 3)
         rows[name] = (days, ci, si, cr, sr)
         h = int(np.nanargmin(ci))
-        print(f"{name:14s} {len(days):5d} {ice_rate:+8.2f} m/yr "
+        print(f"{name:14s} {len(days):5d} {how:>9s} {ice_rate:+8.2f} m/yr "
               f"{np.sqrt(np.nanmean(ci ** 2)):7.2f} mm {ri:10.2f} mm "
               f"{h:8d} h {ci[h]:6.1f} mm {np.sqrt(np.nanmean(cr ** 2)):6.2f} mm")
     print("\n  'composite' is the RMS of the repeating waveform, 'not repeated' "

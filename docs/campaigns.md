@@ -194,10 +194,15 @@ failures and the campaign keeps its other 44 acquisitions.
    and heading for such a scene, so only the refocused copy has an
    azimuth-offset sidecar and a heading measured from eight SLCs. The two
    agree on the day's rate to 0.3 m/yr.
-7. `20160826`: 57 raw files, 26 of them truncated; 3.7 h processed by GAMMA
-   into both a single-reference and a chain network. Its value is the
-   closure triangles those two networks make, not anything sub-daily; the
-   raw adds nothing.
+7. `20160826_full`: the oldest campaign that survives at all, refocused from
+   its raw archive. The archive holds 52 `.raw` files beside the Mac's `._`
+   AppleDouble stubs (the 57 counted in the table above includes the stubs);
+   44 of them focus — seven `.raw`/`.raw_par` pairs are zero bytes and one
+   file is truncated — giving 3.7 h at 5-minute cadence. GAMMA processed the
+   same day into **both** a single-reference and a chain network, and the
+   closure triangles those two make are still its main value: 3.7 h is far
+   short of a cycle, so the refocused scene carries rates and a noise floor,
+   not diurnal phase.
 
 ## Scan headings
 

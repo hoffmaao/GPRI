@@ -168,6 +168,13 @@ def test_focus_campaign_writes_scene(tmp_path):
     assert found[-1][1].name == "20170828_064611.raw_par"
     assert focus.raw_size(found[-1][0]) == plain.stat().st_size
     (camp / "raw2" / "20170828_064411.raw.gz").unlink()
+    # the backup gzipped a sweep into another directory: one acquisition is
+    # still one job, and the plain file still wins
+    (camp / "raw" / "20170828_064411.raw.gz").write_bytes(b"not used")
+    assert [r.name for r, _ in focus.find_raw(camp)] == \
+        ["20170827_234940.raw", "20170828_064211.raw",
+         "20170828_064411.raw", "20170828_064611.raw.gz"]
+    (camp / "raw" / "20170828_064411.raw.gz").unlink()
     # a Mac wrote the archive: its AppleDouble stubs are not acquisitions
     (camp / "raw2" / "._20170828_064811.raw").write_bytes(b"\x00\x05\x16\x07")
     (camp / "raw2" / "._20170828_064811.raw_par").write_bytes(b"\x00\x05\x16\x07")
