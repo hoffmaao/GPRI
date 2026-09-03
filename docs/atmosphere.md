@@ -120,7 +120,11 @@ The four scenes processed since — `20170803_full`, `20180808`, `20190719`
 and `20160826_full` — are scored on held-out rock the same way in the
 README's ["Eight campaigns on one clock"](../README.md#eight-campaigns-on-one-clock)
 table, and do not change the verdict: stage D is 99–105 % of plain
-referencing on all four. The one exception found anywhere is `20190719`'s
+referencing on all four. That table carries stage A and stage D of the
+upper antenna only; the intermediate stages and the lower-antenna rows of
+those four stay in each scene's `work/<scene>/logs/aps_upper` and
+`aps_lower`, which the repository does not carry, so the table above stops
+at the five scored here. The one exception found anywhere is `20190719`'s
 lower antenna, where stage D is 83 % of A — the only row in nine scenes on
 which the turbulence screen pays for itself.
 
