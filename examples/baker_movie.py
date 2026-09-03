@@ -282,8 +282,8 @@ def main():
     bg_map = None if bg is None else rs(bg.astype(np.float32))
     x0, y0 = geom.origin_xy()
 
-    valid0 = next((k for k in range(d.shape[0])
-                   if np.isfinite(d[k]).any()), 0)
+    filled = [k for k in range(d.shape[0]) if np.isfinite(d[k]).any()]
+    valid0 = filled[0] if filled else 0
     frames = range(valid0, d.shape[0], max(1, args.stride))
     # limits from the whole series, not the last frame: cumulative displacement
     # grows all day, and end-of-day limits would flatten the first hours
@@ -291,12 +291,17 @@ def main():
     lim = max(lim, 1.0)
     print(f"colour limits ±{lim:.1f} mm, {len(frames)} frames")
 
-    # crop to where there is something to see
-    first = rs(d[len(d) // 2])
+    # crop to where there is something to see, from a frame that has data:
+    # a trailing-rate view is empty until its window fills, and on a short
+    # record that is the middle of the series
+    first = rs(d[filled[len(filled) // 2]] if filled else d[len(d) // 2])
     ok = np.isfinite(first)
     rr, ccx = np.nonzero(ok)
     xmin, sx, _, ymax, _, sy = rs.transform
     pad = int(1200 / args.spacing)
+    if ccx.size == 0:                      # nothing coherent: show it all
+        rr = np.array([0, first.shape[0] - 1])
+        ccx = np.array([0, first.shape[1] - 1])
     x_lo = (xmin + sx * max(rr.min() * 0, ccx.min() - pad)) / 1000
     x_hi = (xmin + sx * min(ccx.max() + pad, first.shape[1])) / 1000
     y_lo = (ymax + sy * min(rr.max() + pad, first.shape[0])) / 1000
