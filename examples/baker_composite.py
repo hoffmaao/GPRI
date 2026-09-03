@@ -53,9 +53,10 @@ def composite_of(days, which: int):
     y = np.concatenate([d[which] for d in days])
     comp, _ = hour_composite(hod, y)
     per_day = np.array([hourly(d[1], d[which]) for d in days])
-    with np.errstate(invalid="ignore"):
-        seen = np.sum(np.isfinite(per_day), axis=0)
-        spread = np.where(seen >= 2, np.nanstd(per_day, axis=0), np.nan)
+    seen = np.sum(np.isfinite(per_day), axis=0)
+    spread = np.full(per_day.shape[1], np.nan)
+    if (seen >= 2).any():
+        spread[seen >= 2] = np.nanstd(per_day[:, seen >= 2], axis=0)
     resid = y - comp[np.minimum((hod % 24).astype(int), 23)]
     return comp, spread, float(np.sqrt(np.nanmean(resid ** 2)))
 

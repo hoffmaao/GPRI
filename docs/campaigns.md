@@ -150,8 +150,10 @@ Two archive quirks turned up while focusing these and `20160826`, and
 `gpri.focus.find_raw` now handles both: the 2016 archive was written from a
 Mac and carries `._`-prefixed AppleDouble stubs beside the real files (a 4 KB
 "parameter file" with no `time_start`), and seven of its `.raw`/`.raw_par`
-pairs are zero bytes. The stubs are skipped; the empty files are reported as
-failures and the campaign keeps its other 44 acquisitions.
+pairs are zero bytes. The stubs are skipped — they carry the same timestamps
+as the files they shadow, so they change no count — and the empty files are
+reported as failures; with one further file truncated, the campaign keeps its
+other 44 acquisitions.
 
 ## Recommended order
 
@@ -195,14 +197,16 @@ failures and the campaign keeps its other 44 acquisitions.
    azimuth-offset sidecar and a heading measured from eight SLCs. The two
    agree on the day's rate to 0.3 m/yr.
 7. `20160826_full`: the oldest campaign that survives at all, refocused from
-   its raw archive. The archive holds 52 `.raw` files beside the Mac's `._`
-   AppleDouble stubs (the 57 counted in the table above includes the stubs);
-   44 of them focus — seven `.raw`/`.raw_par` pairs are zero bytes and one
-   file is truncated — giving 3.7 h at 5-minute cadence. GAMMA processed the
-   same day into **both** a single-reference and a chain network, and the
-   closure triangles those two make are still its main value: 3.7 h is far
-   short of a cycle, so the refocused scene carries rates and a noise floor,
-   not diurnal phase.
+   its raw archive. The directory holds 57 distinct acquisition timestamps —
+   what the survey tool counts, and what the table above reports — but only
+   52 of them have a `.raw` file at all; the other five
+   (`20160826_184803`, `20160826_213325`, `20160826_215518`,
+   `20160826_233239`, `20160827_000004`) left only a `.raw.log`. Of the 52,
+   seven are zero bytes and one is truncated, so 44 focus, giving 3.7 h at
+   5-minute cadence. GAMMA processed the same day into **both** a
+   single-reference and a chain network, and the closure triangles those two
+   make are still its main value: 3.7 h is far short of a cycle, so the
+   refocused scene carries rates and a noise floor, not diurnal phase.
 
 ## Scan headings
 
