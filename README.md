@@ -477,9 +477,11 @@ against 19 on the one-day `20170803_full`.
 
 Three things the two tables say. First, the atmospheric ladder never gains on
 true rock once the heading is right: stage D is 99–110 % of plain
-referencing on every campaign but one (the 88 % July showed with the 105° mask was
+referencing on every campaign in both tables, which are the upper antenna —
+the one exception anywhere is `20190719`'s lower antenna at 83 %, above.
+(The 88 % July showed with the 105° mask was
 the mask, not the turbulence screen — see
-[`docs/atmosphere.md`](docs/atmosphere.md)). Second, the per-pixel diurnal
+[`docs/atmosphere.md`](docs/atmosphere.md).) Second, the per-pixel diurnal
 stays a null on most of the full-cycle days — ice/rock ratios of 1.6, 1.9 and
 1.7 on `20170713_full`, `20170827` and `20190719`, replication rates within a
 few tenths of a percent of the rock's — and only two days clear the 2× bar:
@@ -511,15 +513,23 @@ its linear trend instead
 
 | UTC day | span | trough | depth | back above trend | rock RMS |
 |---|---:|---:|---:|---:|---:|
+| 2016-08-26 | 20:12–23:54 | 20:18 | −2.7 mm | 20:42 | 0.14 mm |
+| 2017-07-13 | 19:48–23:54 | 21:06 | −6.8 mm | 22:18 | 0.23 mm |
 | 2017-07-14 | 00:18–19:42 | 19:06 | −7.3 mm | — | 0.22 mm |
-| 2017-08-04 | 00:00–22:30 | 11:36 | −17.0 mm | 19:36 | 0.68 mm |
+| 2017-08-04 | 00:00–22:30 | 11:36 | −17.0 mm | 19:36 | 0.80 mm |
 | 2017-08-28 | 00:00–24:00 | 14:06 | −9.3 mm | 14:48 | 0.37 mm |
 | 2017-08-29 | 00:00–20:42 | 05:36 | −20.6 mm | 12:18 | 0.54 mm |
 | 2017-09-15 | 06:00–20:30 | 20:24 | −3.7 mm | — | 0.16 mm |
 | 2018-07-10 | 13:36–20:30 | 14:00 | −6.6 mm | 14:24 | 0.22 mm |
+| 2018-08-09 | 00:06–24:00 | 11:30 | −10.4 mm | 13:00 | 0.34 mm |
+| 2018-08-10 | 00:00–17:24 | 14:48 | −32.2 mm | — | 0.32 mm |
+| 2019-07-19 | 17:48–24:00 | 23:42 | −6.9 mm | — | 0.09 mm |
+| 2019-07-20 | 00:00–24:00 | 19:12 | −9.0 mm | 21:42 | 0.46 mm |
+| 2019-07-21 | 00:00–15:30 | 06:18 | −10.4 mm | 07:30 | 0.58 mm |
 
-(The 4 h of 2017-07-13 the July campaign opens with, 19:48–23:54 UTC, are on
-the figure but too short to compare.)
+Thirteen UTC days across eight scenes. 2017-08-04 is now read from
+`20170803_full` rather than the GAMMA scene, which is why its bedrock RMS is
+0.80 mm here against the 0.68 mm v0.5.0 reported.
 
 **This is where the measured headings changed a conclusion, and the
 detrend then qualified it.** With every campaign drawn at 105°, v0.5.0
@@ -547,11 +557,13 @@ the two lines differ by 6.7 m/yr, 9 mm over the day, and a one-day record
 fixes a same-hour rate to about ±5 m/yr. So part of the 0.64 was the line.
 The night-time slow-down is the feature the two days share on either
 reading; the afternoon is not yet one the data decide. 08-28 correlates
-with neither August day (−0.26, 0.17), as before. The two sub-cycle days
+with neither August day (−0.26, 0.17), as before. The three sub-cycle days
 say nothing about the trough: 09-15 begins at 06 UTC in the middle of it
 and is flat to ±2 mm against a 14.5 h trend; 07-10 runs 13:36–20:30 UTC and
-is flat to ±2 mm. The bedrock's hourly medians correlate between full days
-at −0.48 to +0.28 with no pattern, and the lower antenna reproduces the ice
+is flat to ±2 mm; 08-26 is a 3.7 h evening, 20:12–23:54 UTC, whose deepest
+point is −2.7 mm. The bedrock's hourly medians correlate between the 2017
+full days at −0.48 to +0.28 with no pattern, and the lower antenna
+reproduces the ice
 entries (0.21 for the August pair against the same-hour rates, 0.58 against
 the linear trends; 0.56 and −0.62 for July against the two).
 
@@ -844,9 +856,12 @@ bin/survey_campaigns.py                         # what data exists, and how long
 
 `gpri focus` defaults to the BakerBend recipe (`-d 5 -z 300 -r 300 -k 3.84`
 in `gpri2_proc.py` terms: presum 5 sweeps, 300-sample Hann taper, 300 m
-minimum range, Kaiser β 3.84). Point it at a campaign directory and it finds
-every `.raw` in it and its `raw*/` subdirectories; `--raw-list` restricts it
-to the campaign's own `RAW_list`. Output is byte-compatible with GAMMA's: the
+minimum range, Kaiser β 3.84). Point it at a campaign directory and it takes
+every `.raw` or `.raw.gz` in it and its `raw*/` subdirectories, decompressing
+gzipped sweeps as it reads them, skipping macOS `._` sidecars, and focusing
+one acquisition once even if several copies of it exist; `--raw-list`
+restricts it to the campaign's own `RAW_list`. Output is byte-compatible
+with GAMMA's: the
 `.slc.par` files are identical, the samples agree to float32 rounding
 (max 2e-9 relative), and GAMMA's `multi_look` on our SLC reproduces its own
 MLI to 4e-7.
