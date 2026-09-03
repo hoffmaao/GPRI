@@ -167,7 +167,7 @@ other 44 acquisitions.
    (`bin/run_scene.sh 20170713_full`, half an hour). It is the quiet
    campaign: no per-pixel diurnal detection, no net line-of-sight rate over
    the coherent ice, and a night-time trough of a quarter the August depth
-   at the same hours (`examples/baker_seasons.py`, README "Three campaigns
+   at the same hours (`examples/baker_seasons.py`, README "Eight campaigns
    on one clock").
 4. `20170913` (14.5 h) and `20180709` (6.9 h) fall short of a cycle even
    fully processed. They are useful for rates, not for diurnal phase, and
