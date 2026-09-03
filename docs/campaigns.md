@@ -237,8 +237,8 @@ within the first six hours of a two-day record.
 The offsets are measured against the last SLC of the campaign
 (`gpri coregister --write` → `azimuth_offsets.json`, applied on read), so
 every campaign sits on the grid of its final acquisition. The sub-line
-2017 drifts are thermal — they keep the sun's hours — and are applied all
-the same; only 2018's needed to be.
+drifts of the 2017 campaigns are thermal — they keep the sun's hours — and
+are applied all the same; only the 2018 and 2019 mounts needed them.
 
 ## Practical notes
 

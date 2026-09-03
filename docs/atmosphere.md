@@ -83,11 +83,11 @@ coherence is lower, median 0.28 at 5×5 looks). Stage A at 35.8 mm over
 27.1 × √(44.9 / 24.2) = 37.0 mm predicted, so the longer record adds no
 atmospheric error beyond what the extra epochs integrate.
 
-Every processed campaign has now been scored the same way, on a true-rock
-reference at its measured heading, both antennas (`20170713_full` is the
-July archive refocused to its full 23.9 h; `20170913` and `20180709` are
-the two sub-cycle campaigns, the latter co-registered across a 5.1°
-tripod drift):
+The five campaigns processed at the time were each scored the same way, on
+a true-rock reference at its measured heading, both antennas
+(`20170713_full` is the July archive refocused to its full 23.9 h;
+`20170913` and `20180709` are the two sub-cycle campaigns, the latter
+co-registered across a 5.1° tripod drift):
 
 | campaign | span | held-out px | A | B | C | D | D / A |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -102,8 +102,8 @@ tripod drift):
 | `20180709` upper | 6.9 h | 3,610 | 18.09 mm | 22.60 | 22.59 | 18.99 | 104.9 % |
 | `20180709` lower | 6.9 h | 4,081 | 18.73 mm | 22.43 | 22.41 | 19.52 | 104.2 % |
 
-On true rock at the right heading the ladder gains nothing anywhere: stage
-D is 103–110 % of plain referencing on all ten rows, and the per-pair
+On true rock at the right heading the ladder gains nothing on any of them:
+stage D is 103–110 % of plain referencing on all ten rows, and the per-pair
 screens cost 3–30 %. (The 88–90 % July showed when it was first rescored
 was scored with a mask drawn at 105° instead of its measured 111.4° — 6.4°,
 560 m at 5 km — so its "held-out rock" was partly the wrong pixels; the
@@ -111,10 +111,18 @@ gain went with the mask.) The two August campaigns are consistent with one
 noise level growing as √t (27.1 over 24.2 h; 35.8 over 44.9, where 27.1 ×
 √(44.9 / 24.2) = 37.0). The other three are not on that curve: July sits
 lower (21.6 over 23.9 h), the 2018 morning higher (18.1 over 6.9 h against
-14.5 predicted), and mid-September is the quietest atmosphere in the set
+14.5 predicted), and mid-September is the quietest atmosphere of the five
 by a factor of two — 9.1 mm over 14.5 h against 21 predicted, with a
 common-mode floor between the antennas of 2.6 mm against 10–16 mm on the
 summer days.
+
+The four scenes processed since — `20170803_full`, `20180808`, `20190719`
+and `20160826_full` — are scored on held-out rock the same way in the
+README's ["Eight campaigns on one clock"](../README.md#eight-campaigns-on-one-clock)
+table, and do not change the verdict: stage D is 99–105 % of plain
+referencing on all four. The one exception found anywhere is `20190719`'s
+lower antenna, where stage D is 83 % of A — the only row in nine scenes on
+which the turbulence screen pays for itself.
 
 Two of the conclusions below need correcting in the light of the audit:
 
