@@ -475,23 +475,27 @@ everywhere else. And the two-cycle campaigns keep the same-hour estimator in
 work — 522 pairs of epochs a day apart on `20180808`, 509 on `20190719`,
 against 19 on the one-day `20170803_full`.
 
-Three things the table says. First, the atmospheric ladder never gains on
+Three things the two tables say. First, the atmospheric ladder never gains on
 true rock once the heading is right: stage D is 99–110 % of plain
 referencing on every campaign but one (the 88 % July showed with the 105° mask was
 the mask, not the turbulence screen — see
 [`docs/atmosphere.md`](docs/atmosphere.md)). Second, the per-pixel diurnal
-stays a null on all three full-cycle days — ice/rock ratios of 1.6, 2.5 and
-1.9, replication rates within a few tenths of a percent of the rock's — with
-20170803 still the only day where the ice population clears the 2× bar.
+stays a null on most of the full-cycle days — ice/rock ratios of 1.6, 1.9 and
+1.7 on `20170713_full`, `20170827` and `20190719`, replication rates within a
+few tenths of a percent of the rock's — and only two days clear the 2× bar:
+`20170803` at 2.5, 2.6 on its refocused copy, and `20180808` at 2.2.
 Third, **the ice moves, on every campaign, and the rock does not**: the
-held-out rock ends every record within 2 mm of zero while the RGI ice
-population ends 13 to 90 mm toward the radar, at secular rates from +4.8
+held-out rock ends every record between −3.0 and +2.4 mm of zero while the RGI
+ice population ends 6 to 120 mm toward the radar, at secular rates from +4.8
 m/yr in July to +68 m/yr on the July 2018 morning. The mid-September campaign is
-the quietest atmosphere in the set by a factor of two — 9.1 mm on held-out
-rock over 14.5 h, ±3 mm at the end of the record, a common-mode floor of
-2.6 mm against 10–23 mm on the summer days — and the cleanest secular
-signal: +48 mm of ice motion over rock that holds to a third of a
-millimetre. 2018's ice displacement correlates with slant range at +0.39
+the quietest atmosphere of the campaigns that span half a day or more, by a
+factor of two — 9.1 mm on held-out rock over 14.5 h, ±3 mm at the end of the
+record, a common-mode floor of 2.6 mm against 10–23 mm on the summer days —
+and the cleanest secular signal: +48 mm of ice motion over rock that holds to
+a third of a millimetre. `20160826_full` scores lower still (3.8 mm at
+stage A, a common-mode floor of 0.9 mm), but over 3.7 h against its 14.5,
+which is not the same measurement.
+2018's ice displacement correlates with slant range at +0.39
 (the others: −0.13 to +0.09), so on that short, co-registered morning some
 of the "motion" may be an epoch screen reaching over the ice; its rock is
 clean either way.
