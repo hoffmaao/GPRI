@@ -304,7 +304,7 @@ scan than any later campaign.
 ### Two days: does the diurnal repeat?
 
 `20170827` is now focused and run through the whole chain (`bin/run_scene.sh
-20170827`: aps ladder, RGI audit, pair-domain fit, repeat test, four movies,
+20170827`: aps ladder, RGI audit, pair-domain fit, repeat test, five movies,
 two-antenna replicate and closure, both antennas, about two hours after the
 88-minute focus). The RGI audit drops 73 % of the coherence-only reference as
 glacier (16,805 of 23,092 px); the campaign's coherence is lower than
@@ -825,7 +825,7 @@ to take out.
 
 ```bash
 pip install -e '.[all]'      # numpy, scipy + pyproj, rasterio, matplotlib
-pytest                       # 324 tests
+pytest                       # 344 tests
 ```
 
 Only `numpy` and `scipy` are required. `pyproj` and `rasterio` are needed for
@@ -935,7 +935,7 @@ nothing. `RadarGeometry` warns rather than accepting it quietly.
 radar at 48.82132 N, 121.92018 W, 1252 m sees Baker's summit at bearing 122.5°
 and 9.2 km, Coleman Glacier at 120.6°, Mazama at 107.4°, Colfax Peak at
 129.9°, and the 79° fan needs a heading near 105° to cover them). It was
-wrong for every campaign, by 2.4° to 18°, and a tripod set up by hand on a
+wrong for every campaign, by 2.4° to 19.9°, and a tripod set up by hand on a
 different day points a different way, so one number was never going to do.
 
 ### Measuring it from the terrain
@@ -952,17 +952,16 @@ For each trial heading the antenna angles pick their bearings, and the
 high-passed simulation is correlated with the high-passed measurement. The
 correlation is ~0.02 everywhere and 0.32–0.35 within 0.6° of the answer,
 sharp because a shadow edge moves a full cross-range cell per degree at 5 km.
-The first and last eight SLCs of a campaign agree to 0.03°.
+The first and last eight SLCs of a campaign agree to 0.03° where the mount
+held; where it turned, the heading is fitted on the co-registered reference
+block (below).
 
 ![Heading from the DEM, 20170827](docs/figures/02_heading_20170827.png)
 
-| campaign | heading (° true) | vs 105° | measured on |
-|---|---:|---:|---|
-| `20170713_full` | **111.38** | +6.4° | first 8 SLCs; last 8 agree to 0.01° |
-| `20170803` | **107.42** | +2.4° | 2 SLCs |
-| `20170827` | **100.13** | −4.9° | first 8; last 8 agree to 0.03° |
-| `20170913` | **108.38** | +3.4° | first 8 |
-| `20180709` | **122.80** | +17.8° | reference block, after co-registration (below) |
+Every campaign's measured heading, and what its mount did afterwards, is
+tabulated in [`docs/campaigns.md`](docs/campaigns.md#scan-headings): nine
+scenes spanning 100.13° (`20170827`) to 124.86° (`20180808`), none of them
+105°.
 
 Half a degree of heading is 80 m at 9 km, so the 2.4–6.4° errors of the 2017
 masks moved glacier margins by 200–500 m — enough to put ice in the
