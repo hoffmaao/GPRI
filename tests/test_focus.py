@@ -156,14 +156,43 @@ def test_focus_campaign_writes_scene(tmp_path):
     found = focus.find_raw(camp)
     assert [focus.scene_id(r) for r, _ in found] == \
         ["20170827_234940", "20170828_064211", "20170828_064411"]
+    # a gzipped sweep file is found (and paired with its .raw_par) unless the
+    # plain one is there too
+    import gzip
+    plain = camp / "raw2" / "20170828_064411.raw"
+    (camp / "raw2" / "20170828_064611.raw.gz").write_bytes(gzip.compress(plain.read_bytes()))
+    (camp / "raw2" / "20170828_064611.raw_par").write_bytes((camp / "raw2" / "20170828_064411.raw_par").read_bytes())
+    (camp / "raw2" / "20170828_064411.raw.gz").write_bytes(b"not used")
+    found = focus.find_raw(camp)
+    assert [r.name for r, _ in found][2:] == ["20170828_064411.raw", "20170828_064611.raw.gz"]
+    assert found[-1][1].name == "20170828_064611.raw_par"
+    assert focus.raw_size(found[-1][0]) == plain.stat().st_size
+    (camp / "raw2" / "20170828_064411.raw.gz").unlink()
+    # the backup gzipped a sweep into another directory: one acquisition is
+    # still one job, and the plain file still wins
+    (camp / "raw" / "20170828_064411.raw.gz").write_bytes(b"not used")
+    assert [r.name for r, _ in focus.find_raw(camp)] == \
+        ["20170827_234940.raw", "20170828_064211.raw",
+         "20170828_064411.raw", "20170828_064611.raw.gz"]
+    (camp / "raw" / "20170828_064411.raw.gz").unlink()
+    # a Mac wrote the archive: its AppleDouble stubs are not acquisitions
+    (camp / "raw2" / "._20170828_064811.raw").write_bytes(b"\x00\x05\x16\x07")
+    (camp / "raw2" / "._20170828_064811.raw_par").write_bytes(b"\x00\x05\x16\x07")
+    assert [r.name for r, _ in focus.find_raw(camp)][2:] == \
+        ["20170828_064411.raw", "20170828_064611.raw.gz"]
     (camp / "RAW_list").write_text("raw2/20170828_064411.raw raw2/20170828_064411.raw_par\n")
-    assert len(focus.find_raw(camp)) == 3          # RAW_list is opt-in
+    assert len(focus.find_raw(camp)) == 4          # RAW_list is opt-in
     assert len(focus.find_raw(camp, camp / "RAW_list")) == 1
 
     scene = tmp_path / "scene"
     opts = focus.FocusOptions(dec=DEC, zero=20, rmin=0.0)
     done = focus.focus_campaign(camp, scene, opts, workers=1, log=lambda *a: None)
-    assert done == ["20170827_234940", "20170828_064211", "20170828_064411"]
+    assert done == ["20170827_234940", "20170828_064211", "20170828_064411",
+                    "20170828_064611"]
+    # the gzipped copy focuses to the same image as the plain one
+    a = np.fromfile(scene / "slc" / "20170828_064411u.slc", dtype=">c8")
+    b = np.fromfile(scene / "slc" / "20170828_064611u.slc", dtype=">c8")
+    assert np.array_equal(a, b)
     tab = (scene / "SLCu_tab").read_text().splitlines()
     assert tab[0] == "slc/20170827_234940u.slc  slc/20170827_234940u.slc.par"
     assert (scene / "slc" / "20170828_064411l.slc.par").exists()
@@ -173,7 +202,7 @@ def test_focus_campaign_writes_scene(tmp_path):
 
     from gpri.stack import SlcPairStack
     st = SlcPairStack.from_tab(scene / "SLCu_tab", lags=(1,))
-    assert st.n_pairs == 2
+    assert st.n_pairs == 3
 
 
 def test_position_override_replaces_an_unlocked_gps(tmp_path):

@@ -31,6 +31,7 @@ Nothing here needs the GAMMA binaries; it is numpy only.
 """
 from __future__ import annotations
 
+import gzip
 import math
 import os
 from dataclasses import dataclass, field
@@ -358,8 +359,22 @@ def geometry(raw_par, raw_data=None, opts: FocusOptions | None = None,
         rp = replace(rp, lat=float(lat), lon=float(lon), alt=float(alt))
     if nl_tot is None:
         itemsize = np.dtype(opts.datatype).itemsize
-        nl_tot = os.path.getsize(raw_data) // (2 * itemsize * (rp.ns + 1))
+        nl_tot = raw_size(raw_data) // (2 * itemsize * (rp.ns + 1))
     return FocusGeometry(rp, opts, nl_tot)
+
+
+def raw_size(raw_data) -> int:
+    """Bytes of sweep data in ``raw_data``, a ``.raw`` or a ``.raw.gz``.
+
+    A gzip member ends with its uncompressed length modulo 2**32; a GPRI
+    acquisition is a few hundred MB, so that is the length.
+    """
+    raw_data = Path(raw_data)
+    if raw_data.suffix != ".gz":
+        return os.path.getsize(raw_data)
+    with open(raw_data, "rb") as f:
+        f.seek(-4, os.SEEK_END)
+        return int.from_bytes(f.read(4), "little")
 
 
 # -------------------------------------------------------------- processing
@@ -377,8 +392,13 @@ def read_decimated(geom: FocusGeometry, raw_data) -> tuple[np.ndarray, np.ndarra
     if n_rec > geom.nl_tot:
         raise ValueError(f"{raw_data}: {geom.nl_tot} sweeps in the file, "
                          f"{n_rec} expected from the capture time")
-    with open(raw_data, "rb") as f:
-        din = np.fromfile(f, dtype=dt, count=n_rec * geom.block_length * 2)
+    count = n_rec * geom.block_length * 2
+    if Path(raw_data).suffix == ".gz":         # archives keep some sweeps gzipped
+        with gzip.open(raw_data, "rb") as f:
+            din = np.frombuffer(f.read(count * dt.itemsize), dtype=dt)
+    else:
+        with open(raw_data, "rb") as f:
+            din = np.fromfile(f, dtype=dt, count=count)
     din = din.reshape(geom.nl_tot_dec, o.dec, geom.block_length, 2)
 
     out = []
@@ -444,10 +464,15 @@ def focus(raw_data, raw_par, slc_lower, slc_upper,
 def find_raw(campaign_dir, raw_list=None) -> list[tuple[Path, Path]]:
     """Every ``(raw, raw_par)`` pair under a campaign directory, in time order.
 
-    Every ``*.raw`` in the directory and its ``raw*/`` subdirectories is
-    taken.  A GAMMA ``RAW_list`` (paths relative to the campaign directory,
-    ``raw raw_par`` per line) restricts that to the acquisitions it names —
-    the ones in the archive list only the subset somebody once set up to
+    Every ``*.raw`` (or ``*.raw.gz`` — backups gzip some sweeps, and the
+    reader decompresses on the fly) in the directory and its ``raw*/``
+    subdirectories is taken, and macOS ``._`` sidecars ignored.  A scene id
+    appears exactly once however many copies of it the tree holds — they
+    focus to the same pair of output paths — with a plain ``.raw`` winning
+    over a ``.raw.gz`` wherever either sits.  A
+    GAMMA ``RAW_list`` (paths relative to the campaign directory, ``raw
+    raw_par`` per line) restricts that to the acquisitions it names — the
+    ones in the archive list only the subset somebody once set up to
     process, so it is not honoured unless asked for.
     """
     root = Path(campaign_dir)
@@ -458,12 +483,16 @@ def find_raw(campaign_dir, raw_list=None) -> list[tuple[Path, Path]]:
             if len(tok) >= 2:
                 pairs.append((root / tok[0], root / tok[1]))
         return pairs
-    raws = list(root.glob("*.raw"))
-    for sub in sorted(root.glob("raw*")):
-        if sub.is_dir():
-            raws += sub.glob("*.raw")
-    raws = sorted(set(raws), key=lambda p: p.name)
-    return [(r, r.with_name(r.name + "_par")) for r in raws]
+    dirs = [root] + [d for d in sorted(root.glob("raw*")) if d.is_dir()]
+    raws = {}
+    for pattern in ("*.raw.gz", "*.raw"):      # plain .raw overwrites .gz
+        for d in dirs:
+            for r in d.glob(pattern):
+                if r.name.startswith("._"):    # AppleDouble stub, not a sweep
+                    continue
+                raws[scene_id(r)] = r
+    raws = sorted(raws.values(), key=lambda p: p.name)
+    return [(r, r.with_name(scene_id(r) + ".raw_par")) for r in raws]
 
 
 def scene_id(raw: Path) -> str:
