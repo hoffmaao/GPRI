@@ -13,8 +13,11 @@ analysis — lives in `gpri_tools/`, with a `gpri` command line over it.
 
 **The worked example is Mount Baker**: eight GPRI-II campaigns between 2016
 and 2019, processed end to end, written up in
-[`docs/baker.md`](docs/baker.md). It is the only example here, and nothing in
-`gpri_tools/` is specific to it.
+[`docs/baker.md`](docs/baker.md). It is the only example here. Nothing in
+`gpri_tools/` is limited to it, though a few Baker defaults are provided by
+name: `gpri focus` starts from the BakerBend recipe (`focus.baker_options`),
+and `geocode.BAKERBEND1_HEADING` is the scan heading the examples fall back
+to when a scene has none measured.
 
 ![LOS displacement, north side of Mount Baker](docs/figures/04_displacement.png)
 
@@ -95,9 +98,6 @@ capability above was built for, and it is the only example in this repository.
   measured scan headings and the per-campaign processing notes.
 - [`docs/atmosphere.md`](docs/atmosphere.md) — the correction ladder in full.
 
-`bin/run_scene.sh <scene> [upper|lower|both]` runs the whole chain for one
-campaign, logging every step.
-
 ## Install
 
 ```bash
@@ -142,9 +142,6 @@ with GAMMA's: the
 `.slc.par` files are identical, the samples agree to float32 rounding
 (max 2e-9 relative), and GAMMA's `multi_look` on our SLC reproduces its own
 MLI to 4e-7.
-
-```bash
-```
 
 ```python
 from gpri_tools import DiffStack, RadarGeometry, geocode_image, stack_velocity
@@ -231,7 +228,7 @@ correlation is ~0.02 everywhere and 0.32–0.35 within 0.6° of the answer,
 sharp because a shadow edge moves a full cross-range cell per degree at 5 km.
 The first and last eight SLCs of a campaign agree to 0.03° where the mount
 held; where it turned, the heading is fitted on the co-registered reference
-block (below).
+block (see [`docs/baker.md`](docs/baker.md#did-the-tripod-hold)).
 
 ![Heading from the DEM, 20170827](docs/figures/02_heading_20170827.png)
 
