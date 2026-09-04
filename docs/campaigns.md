@@ -101,7 +101,8 @@ exactly — enough to fit a diurnal harmonic but not enough to check that it
 repeats, and marginal for separating amplitude from secular rate. Its SLCs cover **both receive antennas**, which
 gives the one replicate the campaign has: the lower antenna, formed by
 `SlcPairStack`, run through the identical chain (`examples/baker_antennas.py`
-— the noise floor and the replication test in the README). The same SLCs
+— the noise floor and the replication test in
+[`baker.md`](baker.md#two-antennas-one-day-the-replicate)). The same SLCs
 supply the *i*→*i*+2, *i*→*i*+3 (and longer) pairs the shipped daisy chain
 lacks, so closure phase is measurable on this day too.
 
