@@ -5,7 +5,7 @@
 
 The GPRI-II receives on two antennas, 25 cm apart on the same mast, sampled
 in the same sweep.  GAMMA only ever processed the upper one.  Forming the
-lower antenna's pairs from its SLCs (:class:`gpri.stack.SlcPairStack`) and
+lower antenna's pairs from its SLCs (:class:`gpri_tools.stack.SlcPairStack`) and
 running them through the identical chain gives a second, independent
 realisation of the same 24 hours — same atmosphere, same ice, same
 geometry to within the antenna spacing, but independent thermal noise and
@@ -45,10 +45,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from baker_aps import SCENES, integrate, load, split_mask          # noqa: E402
 
-from gpri.aps import epoch_screen_correction, turbulence_screen    # noqa: E402
-from gpri.diurnal import DIURNAL, MIN_CYCLES                       # noqa: E402
-from gpri.pairlsq import fit_pairs                                 # noqa: E402
-from gpri.timeseries import los_displacement                       # noqa: E402
+from gpri_tools.aps import epoch_screen_correction, turbulence_screen    # noqa: E402
+from gpri_tools.diurnal import DIURNAL, MIN_CYCLES                       # noqa: E402
+from gpri_tools.pairlsq import fit_pairs                                 # noqa: E402
+from gpri_tools.timeseries import los_displacement                       # noqa: E402
 
 
 def masks(stack, mean_cc, args):
@@ -59,9 +59,9 @@ def masks(stack, mean_cc, args):
     if not args.rgi:
         return stable, usable & ~stable
     from baker_north_side import decimated_par
-    from gpri.geocode import BAKERBEND1_HEADING, RadarGeometry
-    from gpri.glaciers import glacier_mask, load_outlines, stable_ground_mask
-    from gpri.heading import scene_heading
+    from gpri_tools.geocode import BAKERBEND1_HEADING, RadarGeometry
+    from gpri_tools.glaciers import glacier_mask, load_outlines, stable_ground_mask
+    from gpri_tools.heading import scene_heading
     scene = Path(SCENES.get(args.scene, args.scene))
     geom = RadarGeometry(decimated_par(stack.par, args.decimate),
                          heading=scene_heading(scene, default=BAKERBEND1_HEADING))

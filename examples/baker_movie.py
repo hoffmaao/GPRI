@@ -27,7 +27,7 @@ measured against -- the per-pixel LOS rate over the day, in m/yr -- and a
 time strip with the median anomaly over the ice and a cursor at the current
 frame, so the diurnal swing is readable as a curve and not only as a colour.
 ``--anomaly periodic`` needs a record longer than one cycle: the rate is
-the population's same-hour rate (:func:`gpri.diurnal.secular_slope`), which
+the population's same-hour rate (:func:`gpri_tools.diurnal.secular_slope`), which
 no 24 h waveform can tilt, applied as a common correction to every pixel's
 linear rate.
 
@@ -53,11 +53,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from baker_aps import SCENES, load, integrate                      # noqa: E402
 from baker_north_side import read_backdrop                         # noqa: E402
 
-from gpri.aps import epoch_screen_correction, turbulence_screen    # noqa: E402
-from gpri.diurnal import DIURNAL, MIN_CYCLES, m_per_yr, secular_slope  # noqa: E402
-from gpri.geocode import BAKERBEND1_HEADING, RadarGeometry, map_grid  # noqa: E402
-from gpri.heading import scene_heading                              # noqa: E402
-from gpri.timeseries import los_displacement                       # noqa: E402
+from gpri_tools.aps import epoch_screen_correction, turbulence_screen    # noqa: E402
+from gpri_tools.diurnal import DIURNAL, MIN_CYCLES, m_per_yr, secular_slope  # noqa: E402
+from gpri_tools.geocode import BAKERBEND1_HEADING, RadarGeometry, map_grid  # noqa: E402
+from gpri_tools.heading import scene_heading                              # noqa: E402
+from gpri_tools.timeseries import los_displacement                       # noqa: E402
 
 
 def decimated_geom(stack, dec, heading):
@@ -156,7 +156,7 @@ def main():
     show = mean_cc >= args.show_coherence
     if args.rgi:
         import os as _os
-        from gpri.glaciers import load_outlines, stable_ground_mask
+        from gpri_tools.glaciers import load_outlines, stable_ground_mask
         _g = decimated_geom(stack, args.decimate, args.heading)
         la, lo = _g.geodetic(rows=[0, _g.shape[0] - 1],
                              cols=[0, _g.shape[1] - 1])

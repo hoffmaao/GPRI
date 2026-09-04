@@ -3,9 +3,9 @@ import numpy as np
 import pytest
 from datetime import datetime, timedelta
 
-from gpri.diurnal import fit_harmonics
-from gpri.network import Network
-from gpri.pairlsq import (DIURNAL, SEMIDIURNAL, PairModelFit, fit_pairs,
+from gpri_tools.diurnal import fit_harmonics
+from gpri_tools.network import Network
+from gpri_tools.pairlsq import (DIURNAL, SEMIDIURNAL, PairModelFit, fit_pairs,
                           pair_design, temporal_design)
 
 

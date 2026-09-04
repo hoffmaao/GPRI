@@ -77,7 +77,7 @@ for b in SLC_intf multi_look cc_wave rasmph_pwr create_offset; do
   gpri_have "$b" && pass "binary on PATH: $b" || fail "binary missing: $b"
 done
 # GPRI raw -> SLC is a python2 script in this distribution, not a binary;
-# gpri/focus.py ports it, so this is informational
+# gpri_tools/focus.py ports it, so this is informational
 if [ -n "${GAMMA_HOME:-}" ] && [ -f "$GAMMA_HOME/GPRI2-2/trunk/python/gpri2_proc.py" ]; then
   pass "gpri2_proc.py present (gpri focus is the python3 port)"
 else

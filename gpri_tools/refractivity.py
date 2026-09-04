@@ -1,6 +1,6 @@
 """Atmospheric refractivity from meteorology, and per-epoch refractivity series.
 
-:mod:`gpri.atmosphere` estimates the atmospheric phase *empirically*, from the
+:mod:`gpri_tools.atmosphere` estimates the atmospheric phase *empirically*, from the
 interferograms themselves.  This module comes at the same quantity from the
 other side — from pressure, temperature and humidity — which is what lets you
 check whether an estimated screen is physically plausible, correct with met
@@ -54,13 +54,13 @@ Humidity dominates regardless, and a 10 % relative-humidity swing between two
 acquisitions four minutes apart on a glacier is unremarkable — eight fringes.
 This is the single largest error source in ground-based radar interferometry,
 larger than the signal by an order of magnitude, which is why
-:mod:`gpri.atmosphere` exists at all.
+:mod:`gpri_tools.atmosphere` exists at all.
 
 Per-epoch refractivity
 ----------------------
 :func:`invert_refractivity` treats the per-pair range ramps as a network
 observation and solves for one refractivity value per epoch — the same SBAS
-inversion :mod:`gpri.timeseries` runs on displacement, applied to the
+inversion :mod:`gpri_tools.timeseries` runs on displacement, applied to the
 atmosphere instead.  The result is a refractivity time series you can plot
 against a weather station and sanity-check directly.
 """
@@ -170,7 +170,7 @@ class MetRecord:
 def ramp_from_delta_n(delta_N, wavelength):
     """Range-phase slope (rad/m) produced by a refractivity change in N-units.
 
-    The inverse of :func:`gpri.atmosphere.delta_refractivity`, in the units met
+    The inverse of :func:`gpri_tools.atmosphere.delta_refractivity`, in the units met
     people actually use.  ``ramp = 4 pi * dN * 1e-6 / lambda``.
     """
     return 4.0 * np.pi * np.asarray(delta_N, float) * 1e-6 / np.asarray(wavelength, float)
@@ -181,7 +181,7 @@ def refractivity_phase(delta_N, slant_range, wavelength, reference_range=None):
 
     ``reference_range`` sets where the screen is zero — near range by default,
     which keeps the numbers readable and matches how
-    :class:`gpri.atmosphere.PhaseScreen` references its own ramp.
+    :class:`gpri_tools.atmosphere.PhaseScreen` references its own ramp.
     """
     r = np.asarray(slant_range, float)
     r0 = r.min() if reference_range is None else float(reference_range)
@@ -249,9 +249,9 @@ def invert_refractivity(pair_delta_n, network, weights=None, reference=0,
     """Per-epoch refractivity from per-pair refractivity changes.
 
     Each pair ``(i, j)`` gives one observation of ``N_j - N_i`` — take it from
-    :attr:`gpri.atmosphere.PhaseScreen.delta_n` (times ``1e6`` for N-units) on
+    :attr:`gpri_tools.atmosphere.PhaseScreen.delta_n` (times ``1e6`` for N-units) on
     every interferogram.  This runs the same network inversion
-    :mod:`gpri.timeseries` uses for displacement, so the result is a per-epoch
+    :mod:`gpri_tools.timeseries` uses for displacement, so the result is a per-epoch
     refractivity relative to the reference epoch.
 
     Two reasons to bother.  It is a real, physical time series you can plot
@@ -264,7 +264,7 @@ def invert_refractivity(pair_delta_n, network, weights=None, reference=0,
     ----------
     pair_delta_n : array (n_pairs, ...)
         Observed ``N_j - N_i`` per pair, N-units.
-    network : :class:`gpri.network.Network`
+    network : :class:`gpri_tools.network.Network`
 
     Returns
     -------
@@ -281,7 +281,7 @@ def invert_refractivity(pair_delta_n, network, weights=None, reference=0,
 
 def screens_to_delta_n(screens, wavelength=None):
     """Pull ``dN`` in N-units out of a list of fitted
-    :class:`gpri.atmosphere.PhaseScreen` objects."""
+    :class:`gpri_tools.atmosphere.PhaseScreen` objects."""
     out = []
     for s in screens:
         if s is None:

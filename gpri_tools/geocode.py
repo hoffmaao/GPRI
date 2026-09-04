@@ -27,10 +27,10 @@ never surveyed, and a scan heading of exactly zero would point the fan due
 north, at nothing.  So the absolute orientation is not in the data and has to
 be supplied.  Three ways to get it:
 
-* :func:`gpri.heading.heading_from_dem` (``gpri heading``) — the terrain's
+* :func:`gpri_tools.heading.heading_from_dem` (``gpri heading``) — the terrain's
   shadows and facing slopes, simulated from a DEM and correlated with the
   mean backscatter, fix it to 0.03 deg with no field survey and no tie point.
-  This is what the examples use, through :func:`gpri.heading.scene_heading`.
+  This is what the examples use, through :func:`gpri_tools.heading.scene_heading`.
 * :func:`heading_from_tiepoint` — give it one identifiable feature (a summit,
   a nunatak, a rock rib) with known coordinates and the pixel it lands on, and
   it solves for the heading.

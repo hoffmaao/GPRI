@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 
-from gpri.phaselink import (coherence_magnitude, emi, eigensar, evd, ml_cost,
+from gpri_tools.phaselink import (coherence_magnitude, emi, eigensar, evd, ml_cost,
                             mle, phase_link, temporal_coherence)
 
 METHODS = ["evd", "eigensar", "emi", "mle"]

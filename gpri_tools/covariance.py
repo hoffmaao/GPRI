@@ -121,7 +121,7 @@ def coherence_from_interferograms(ifgs, pairs, n_epochs, coherence=None):
         One interferogram per pair, conjugate convention ``z_ref * conj(z_sec)``
         as produced by GAMMA's ``SLC_intf``.
     pairs : array (P, 2) int
-        0-based epoch indices, e.g. from :func:`gpri.network.read_itab`.
+        0-based epoch indices, e.g. from :func:`gpri_tools.network.read_itab`.
     coherence : array (P, ...) float, optional
         Per-pair coherence magnitude.  If omitted, magnitudes come from ``ifgs``.
 

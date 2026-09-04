@@ -24,7 +24,7 @@ This is the whole methodological difficulty, and it is worth being blunt about.
 Air temperature and humidity on a mountain flank cycle with a 24-hour period.
 A residual refractivity error therefore appears in the time series **at exactly
 the period being looked for, and roughly in phase with it** — melt and warming
-peak together.  From :mod:`gpri.refractivity`, 1 % of relative humidity is 0.8
+peak together.  From :mod:`gpri_tools.refractivity`, 1 % of relative humidity is 0.8
 fringes across the swath; the diurnal humidity swing is tens of percent.  The
 atmospheric diurnal is, before correction, one to two orders of magnitude
 larger than the glaciological one.
@@ -39,7 +39,7 @@ tests here, and a claim should survive all three:
    nothing.
 2. :func:`atmospheric_coherence` — regress the per-pixel diurnal against the
    independently estimated per-epoch refractivity series
-   (:func:`gpri.refractivity.invert_refractivity`).  What is left after
+   (:func:`gpri_tools.refractivity.invert_refractivity`).  What is left after
    projecting that out is what can be defended.
 3. :func:`stable_ground_null` — run the same fit on bedrock, which is not
    moving.  Any diurnal amplitude recovered there is the error floor, and no
@@ -51,7 +51,7 @@ Before any of that: an interferogram fixes phase only up to an additive
 constant, so integrating a network accumulates one arbitrary offset per pair
 into a scene-wide drift.  On a mountain flank that drift is diurnal, because
 the atmosphere is, and it appears on ice and bedrock alike at the same phase.
-Run :func:`gpri.timeseries.reference_to_stable` before fitting, and hold out
+Run :func:`gpri_tools.timeseries.reference_to_stable` before fitting, and hold out
 reference pixels from the null test — testing on the pixels used to reference
 is circular, since they were forced to zero by construction.  Skipping this
 step produces a large, clean, entirely spurious diurnal signal; it is the
@@ -307,8 +307,8 @@ def fit_harmonics(displacement, times, periods=(DIURNAL,), degree=1,
     ----------
     displacement : array (n_epochs, ...)
         LOS displacement in metres, from
-        :attr:`gpri.timeseries.TimeSeries.displacement` or
-        :func:`gpri.timeseries.displacement_from_phases`.
+        :attr:`gpri_tools.timeseries.TimeSeries.displacement` or
+        :func:`gpri_tools.timeseries.displacement_from_phases`.
     times : (n_epochs,) array
         Days from the first acquisition — ``network.times``.
     periods : tuple
@@ -439,7 +439,7 @@ def atmospheric_coherence(displacement, times, refractivity, weights=None):
 
     Regresses each pixel's displacement onto the independently estimated
     per-epoch refractivity series (N-units, from
-    :func:`gpri.refractivity.invert_refractivity`) plus an offset and rate.
+    :func:`gpri_tools.refractivity.invert_refractivity`) plus an offset and rate.
     Returns the fraction of variance the refractivity term accounts for.
 
     A pixel where this is high has a time series driven by the atmosphere,

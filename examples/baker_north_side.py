@@ -12,7 +12,7 @@ south-east at the north-side glaciers.  ``GPRI_scan_heading`` was never
 surveyed (it is 0.0 in every parameter file), so the heading here is the
 ``BAKERBEND1_HEADING`` estimate — good enough to see that the fan covers the
 right mountain, not good enough to publish a map from.  Tie it to a real
-feature with ``gpri.geocode.heading_from_tiepoint`` first.
+feature with ``gpri_tools.geocode.heading_from_tiepoint`` first.
 """
 from __future__ import annotations
 
@@ -27,13 +27,13 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from gpri import atmosphere, plot
-from gpri.gamma import ParFile
-from gpri.geocode import BAKERBEND1_HEADING, RadarGeometry, geocode
-from gpri.heading import scene_heading
-from gpri.refractivity import invert_refractivity, screens_to_delta_n
-from gpri.stack import DiffStack
-from gpri.timeseries import los_displacement, stack_velocity
+from gpri_tools import atmosphere, plot
+from gpri_tools.gamma import ParFile
+from gpri_tools.geocode import BAKERBEND1_HEADING, RadarGeometry, geocode
+from gpri_tools.heading import scene_heading
+from gpri_tools.refractivity import invert_refractivity, screens_to_delta_n
+from gpri_tools.stack import DiffStack
+from gpri_tools.timeseries import los_displacement, stack_velocity
 
 import importlib.util as _ilu
 import os as _os
@@ -79,7 +79,7 @@ def read_backdrop(scene: Path, stack: DiffStack, stride: int):
     The MLIs carry the real backscatter, on the identical 396 x 22101 grid —
     ``baker_mli_upper.ave`` is the whole-day average and is the best of them.
     """
-    from gpri.gamma import read_image
+    from gpri_tools.gamma import read_image
 
     # which antenna an SLC-formed stack is looking through: the id suffix
     ant = "u"
@@ -98,7 +98,7 @@ def read_backdrop(scene: Path, stack: DiffStack, stride: int):
             # keep the result beside them for the next script (written under
             # a temporary name so a script running alongside never reads a
             # half-written file)
-            from gpri.gamma import write_image
+            from gpri_tools.gamma import write_image
             path = scene / f"mli_mean_{ant}.ave"
             a = stack.mean_intensity()
             try:

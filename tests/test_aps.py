@@ -3,12 +3,12 @@ import numpy as np
 import pytest
 from datetime import datetime, timedelta
 
-from gpri.aps import (EpochScreens, displacement_ramp_to_delta_n,
+from gpri_tools.aps import (EpochScreens, displacement_ramp_to_delta_n,
                       epoch_screen_correction, invert_screens,
                       remove_turbulence, turbulence_screen)
-from gpri.atmosphere import PhaseScreen, remove_screen
-from gpri.network import Network
-from gpri.timeseries import wrap
+from gpri_tools.atmosphere import PhaseScreen, remove_screen
+from gpri_tools.network import Network
+from gpri_tools.timeseries import wrap
 
 R = np.linspace(300.0, 10400.0, 64)
 AZ = np.linspace(-28.0, 51.0, 40)
@@ -265,7 +265,7 @@ def test_epoch_screen_correction_removes_constant_and_ramp_drift():
 
 
 def test_constant_model_reproduces_reference_to_stable_mean():
-    from gpri.timeseries import reference_to_stable
+    from gpri_tools.timeseries import reference_to_stable
     d, stable, _, r, _ = _series(seed=1)
     out, _ = epoch_screen_correction(d, stable, r, model="constant")
     ref = reference_to_stable(d, stable, method="mean")
@@ -274,7 +274,7 @@ def test_constant_model_reproduces_reference_to_stable_mean():
 
 def test_ramp_drift_is_invisible_to_plain_referencing():
     """The failure mode this function exists for."""
-    from gpri.timeseries import reference_to_stable
+    from gpri_tools.timeseries import reference_to_stable
     d, stable, drift, r, _ = _series(seed=2)
     ref = reference_to_stable(d, stable)
     scr, _ = epoch_screen_correction(d, stable, r, model="linear")

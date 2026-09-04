@@ -2,7 +2,7 @@
 
 Why per-pair screens are not enough
 -----------------------------------
-:func:`gpri.atmosphere.fit_screen` estimates each interferogram's screen
+:func:`gpri_tools.atmosphere.fit_screen` estimates each interferogram's screen
 independently.  Three things are wrong with stopping there, and the full-day
 BakerBend1 run exposed all of them:
 
@@ -20,7 +20,7 @@ Two corrections, for two different errors
 ----------------------------------------
 :func:`invert_screens` treats the fitted per-pair screen *coefficients* as
 network observations — exactly the quantities
-:func:`gpri.timeseries.invert_network` was built to invert — and solves for one
+:func:`gpri_tools.timeseries.invert_network` was built to invert — and solves for one
 coefficient vector **per epoch**.  Screen coefficients are linear in the phase,
 so this is exact, and the reconstructed pair screens ``e_j - e_i`` close by
 construction.  Its real value is on networks with redundancy (``i -> i+2``
@@ -38,7 +38,7 @@ accumulated atmospheric error is, on stable ground, directly visible — bedrock
 is not moving, so whatever spatial structure the series has there *is* the
 error.  Fitting the screen model to each epoch's displacement over stable
 ground and subtracting it everywhere generalises
-:func:`gpri.timeseries.reference_to_stable` from a constant to the full model:
+:func:`gpri_tools.timeseries.reference_to_stable` from a constant to the full model:
 the constant term is the common mode that function removes, and the range term
 is the accumulated ramp drift it cannot.  No wrapping issues arise, because
 displacement is already integrated.
@@ -121,7 +121,7 @@ class EpochScreens:
     def pair_screen(self, p):
         """The network-consistent screen of pair ``p``: ``e_j - e_i``.
 
-        This is what to hand to :func:`gpri.atmosphere.remove_screen` in place
+        This is what to hand to :func:`gpri_tools.atmosphere.remove_screen` in place
         of the independently fitted per-pair screen.  Around any closed
         triangle these reconstructions sum to zero by construction, which the
         independent fits never did.
@@ -133,7 +133,7 @@ class EpochScreens:
         """Per-epoch refractivity relative to the reference, N-units.
 
         The physical series to plot against a weather station — the same
-        quantity :func:`gpri.refractivity.invert_refractivity` produces from
+        quantity :func:`gpri_tools.refractivity.invert_refractivity` produces from
         per-pair values, but estimated jointly with the rest of the screen.
         """
         if self.wavelength is None:
@@ -153,14 +153,14 @@ def invert_screens(screens, network, smoothing=0.0, weights=None,
 
     Parameters
     ----------
-    screens : sequence of :class:`gpri.atmosphere.PhaseScreen` or None
+    screens : sequence of :class:`gpri_tools.atmosphere.PhaseScreen` or None
         One per pair, in network order — the output of running
-        :func:`gpri.atmosphere.fit_screen` over the stack.  ``None`` marks a
+        :func:`gpri_tools.atmosphere.fit_screen` over the stack.  ``None`` marks a
         pair whose fit failed; it is excluded (weight zero), not zero-filled.
-    network : :class:`gpri.network.Network`
+    network : :class:`gpri_tools.network.Network`
     smoothing : float
         Second-difference temporal penalty, passed to
-        :func:`gpri.timeseries.invert_network`.  0 reproduces the per-pair
+        :func:`gpri_tools.timeseries.invert_network`.  0 reproduces the per-pair
         fits exactly on a daisy chain (the system is square there).  Keep it
         small: measured on synthetic chains, a light penalty buys a few
         percent and a heavy one biases the recovered atmosphere toward a
@@ -235,7 +235,7 @@ def epoch_screen_correction(displacement, mask, slant_range, azimuth=None,
     series) and subtracts the evaluated screen from the whole scene.
 
     With ``model="constant"`` this *is*
-    :func:`gpri.timeseries.reference_to_stable` (with a weighted-mean rather
+    :func:`gpri_tools.timeseries.reference_to_stable` (with a weighted-mean rather
     than a median).  ``"linear"`` additionally removes the accumulated
     range-ramp drift — the spurious range-linear displacement that per-pair
     ramp noise integrates into and that spatial referencing cannot touch.
@@ -250,7 +250,7 @@ def epoch_screen_correction(displacement, mask, slant_range, azimuth=None,
         or the test is circular.
     slant_range : (nr,) array
     azimuth : (na,) array, optional — required by models with azimuth terms.
-    model : str or term sequence, from :data:`gpri.atmosphere.MODELS`.
+    model : str or term sequence, from :data:`gpri_tools.atmosphere.MODELS`.
     weights : array (na, nr), optional
         Quality inside the mask (mean coherence is the natural choice).
 
@@ -395,7 +395,7 @@ def remove_turbulence(phase, mask, sigma, **kwargs):
 
     Returns ``(corrected, screen, quality)``; corrected is wrapped phase (or
     complex, matching the input) exactly as
-    :func:`gpri.atmosphere.remove_screen` would return it.
+    :func:`gpri_tools.atmosphere.remove_screen` would return it.
     """
     from .atmosphere import remove_screen
 

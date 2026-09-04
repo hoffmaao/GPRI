@@ -9,7 +9,7 @@ invisible once resampled.  Never use it to make a claim about where something
 is on the ground: the fan is anisotropic by a factor of 60 across the swath.
 
 **Map geometry** (:func:`map_image`, :func:`velocity_map`) shows the same array
-after :func:`gpri.geocode.geocode`, in a north-up projected frame with a scale
+after :func:`gpri_tools.geocode.geocode`, in a north-up projected frame with a scale
 bar and a north arrow.  Everything spatial goes here.
 
 Colour
@@ -69,7 +69,7 @@ def radar_image(data, geom=None, kind="phase", ax=None, title=None, cmap=None,
                 vmin=None, vmax=None, ground_range=True, colorbar=True):
     """Plot an array in radar geometry, with physical axes where possible.
 
-    With a :class:`gpri.geocode.RadarGeometry` the axes become ground range in
+    With a :class:`gpri_tools.geocode.RadarGeometry` the axes become ground range in
     kilometres and azimuth angle in degrees rather than pixel indices, which at
     least makes the distortion legible even though it does not remove it.
     """
@@ -112,7 +112,7 @@ def map_image(data, transform, kind="velocity", ax=None, title=None, cmap=None,
               scale=True, north=True, background=None):
     """Plot a geocoded array in the map frame, north up.
 
-    ``transform`` is the affine tuple :func:`gpri.geocode.geocode` returns.
+    ``transform`` is the affine tuple :func:`gpri_tools.geocode.geocode` returns.
     ``origin_xy`` marks the radar position.  ``background`` is an optional
     array plotted underneath in grey — a geocoded MLI amplitude makes a good
     one, so the reader can see the terrain the measurements sit on.
@@ -161,8 +161,8 @@ def map_image(data, transform, kind="velocity", ax=None, title=None, cmap=None,
 def velocity_map(velocity, transform, wavelength=None, **kwargs):
     """LOS velocity in m/yr on a map, diverging about zero.
 
-    ``velocity`` is metres per day out of :func:`gpri.timeseries.stack_velocity`
-    or :meth:`gpri.timeseries.TimeSeries.velocity`; it is scaled to metres
+    ``velocity`` is metres per day out of :func:`gpri_tools.timeseries.stack_velocity`
+    or :meth:`gpri_tools.timeseries.TimeSeries.velocity`; it is scaled to metres
     per year here, the unit glacier velocities are quoted in.
     """
     from .diurnal import m_per_yr
@@ -252,7 +252,7 @@ def north_arrow(ax, loc=(0.93, 0.10), size=0.08, color="k"):
 def displacement_series(ts, pixels=None, ax=None, unit="mm", label=None):
     """LOS displacement against time for one or more pixels.
 
-    ``ts`` is a :class:`gpri.timeseries.TimeSeries`.  ``pixels`` is a list of
+    ``ts`` is a :class:`gpri_tools.timeseries.TimeSeries`.  ``pixels`` is a list of
     index tuples into the spatial axes; omit it for a spatially averaged series.
     """
     plt = _mpl()
@@ -344,9 +344,9 @@ def closure_bias_plot(model, ax=None, wavelength=None, unit="mm"):
 def refractivity_plot(N, times=None, ax=None, met=None, label="estimated"):
     """Per-epoch refractivity, optionally against met-derived values.
 
-    ``N`` is N-units from :func:`gpri.refractivity.invert_refractivity`; ``met``
+    ``N`` is N-units from :func:`gpri_tools.refractivity.invert_refractivity`; ``met``
     is an optional companion series computed from a weather station via
-    :func:`gpri.refractivity.refractivity`.  Plotting them together is the only
+    :func:`gpri_tools.refractivity.refractivity`.  Plotting them together is the only
     independent check there is on an empirically estimated screen.
     """
     plt = _mpl()
@@ -372,7 +372,7 @@ def ps_map(mask, transform=None, geom=None, ax=None, background=None,
            title=None):
     """Where the persistent scatterers are.
 
-    Worth looking at before trusting anything from :mod:`gpri.psinterp`: if the
+    Worth looking at before trusting anything from :mod:`gpri_tools.psinterp`: if the
     PS all sit on one rock rib, the interpolation across the glacier is
     extrapolation and the time series there is a guess.
     """
@@ -412,7 +412,7 @@ def diurnal_summary(fit, times, slant_range=None, mask=None, origin_hour=0.0,
     The bottom-left panel is the one that decides whether the signal is real.
     It plots diurnal amplitude against slant range: residual refractivity is
     linear in range, ice motion is not, so a rising trend there means the
-    diurnal is atmospheric.  See :func:`gpri.diurnal.range_dependence`.
+    diurnal is atmospheric.  See :func:`gpri_tools.diurnal.range_dependence`.
     """
     plt = _mpl()
     from .diurnal import DIURNAL, range_dependence

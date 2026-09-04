@@ -9,7 +9,7 @@ designed to catch sub-daily velocity and uplift variation driven by water
 pressure in the subglacial drainage system.
 
 This script runs the whole chain — atmospheric screens, network inversion,
-harmonic fit — and then runs the three tests in :mod:`gpri.diurnal` that decide
+harmonic fit — and then runs the three tests in :mod:`gpri_tools.diurnal` that decide
 whether the recovered diurnal is glaciological or is the atmosphere's own
 diurnal cycle leaking through.  It prints the verdict either way.
 """
@@ -25,12 +25,12 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from gpri import atmosphere, diurnal, plot
-from gpri.geocode import BAKERBEND1_HEADING, RadarGeometry, geocode
-from gpri.heading import scene_heading
-from gpri.refractivity import invert_refractivity, screens_to_delta_n
-from gpri.stack import DiffStack
-from gpri.timeseries import los_displacement, reference_to_stable
+from gpri_tools import atmosphere, diurnal, plot
+from gpri_tools.geocode import BAKERBEND1_HEADING, RadarGeometry, geocode
+from gpri_tools.heading import scene_heading
+from gpri_tools.refractivity import invert_refractivity, screens_to_delta_n
+from gpri_tools.stack import DiffStack
+from gpri_tools.timeseries import los_displacement, reference_to_stable
 
 from baker_north_side import SCENE, decimated_par, read_backdrop
 

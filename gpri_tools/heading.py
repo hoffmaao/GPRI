@@ -2,7 +2,7 @@
 
 ``GPRI_scan_heading`` is 0.0 in every BakerBend1 parameter file — the
 instrument never knew, and a tripod set up by hand on a different day points
-a different way.  :data:`gpri.geocode.BAKERBEND1_HEADING` was a bearing-
+a different way.  :data:`gpri_tools.geocode.BAKERBEND1_HEADING` was a bearing-
 table guess (105 deg) shared by every campaign; the terrain says otherwise,
 and says it differently for each campaign.
 
@@ -184,7 +184,7 @@ def mean_intensity(slcs, n=8, which="first", offsets=None):
     """Average |SLC|^2 over ``n`` images and the par of the first one.
 
     ``offsets`` is a campaign's ``{acquisition id: lines}`` table
-    (:func:`gpri.coregister.scene_azimuth_offsets`): each image is shifted
+    (:func:`gpri_tools.coregister.scene_azimuth_offsets`): each image is shifted
     onto the reference grid before it is added, so a campaign whose tripod
     turned still averages to one sharp picture — on the reference's grid,
     which is the grid the heading then describes.

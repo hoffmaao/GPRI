@@ -4,7 +4,7 @@
     python examples/baker_pairlsq.py --scene 20170803 --decimate 16
 
 Fits rate + diurnal directly to the corrected pair observations
-(:func:`gpri.pairlsq.fit_pairs`) with per-pair coherence weights, and puts the
+(:func:`gpri_tools.pairlsq.fit_pairs`) with per-pair coherence weights, and puts the
 result beside the two-step (integrate-then-fit) estimate.  The headline
 product is the per-pixel **SNR map**: amplitude over its formal standard
 error, which turns "is there a diurnal signal?" into a number with a
@@ -35,11 +35,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from baker_aps import SCENES, integrate, load, split_mask          # noqa: E402
 
-from gpri.aps import epoch_screen_correction, turbulence_screen    # noqa: E402
-from gpri.diurnal import DIURNAL, MIN_CYCLES, fit_harmonics        # noqa: E402
-from gpri.pairlsq import fit_pairs                                 # noqa: E402
-from gpri.refractivity import invert_refractivity, screens_to_delta_n  # noqa: E402
-from gpri.timeseries import los_displacement                       # noqa: E402
+from gpri_tools.aps import epoch_screen_correction, turbulence_screen    # noqa: E402
+from gpri_tools.diurnal import DIURNAL, MIN_CYCLES, fit_harmonics        # noqa: E402
+from gpri_tools.pairlsq import fit_pairs                                 # noqa: E402
+from gpri_tools.refractivity import invert_refractivity, screens_to_delta_n  # noqa: E402
+from gpri_tools.timeseries import los_displacement                       # noqa: E402
 
 
 def main():
@@ -84,9 +84,9 @@ def main():
     if args.rgi:
         import os as _os
         from baker_north_side import decimated_par
-        from gpri.geocode import BAKERBEND1_HEADING, RadarGeometry
-        from gpri.heading import scene_heading
-        from gpri.glaciers import glacier_mask, load_outlines, stable_ground_mask
+        from gpri_tools.geocode import BAKERBEND1_HEADING, RadarGeometry
+        from gpri_tools.heading import scene_heading
+        from gpri_tools.glaciers import glacier_mask, load_outlines, stable_ground_mask
         geom = RadarGeometry(decimated_par(stack.par, args.decimate),
                              heading=scene_heading(scene, default=BAKERBEND1_HEADING))
         la, lo = geom.geodetic(rows=[0, geom.shape[0] - 1],
@@ -154,7 +154,7 @@ def main():
           f"optimism.")
 
     # ---- covariate run: project the refractivity series out ----------------
-    from gpri import atmosphere
+    from gpri_tools import atmosphere
     dN = []
     for p in range(min(n, obs.shape[0])):
         try:

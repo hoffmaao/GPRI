@@ -262,7 +262,7 @@ def map_image(path, par=None, shape=None, image_format=None, mode="r"):
 
     A single BakerBend1 interferogram is 70 MB and there are 723 of them; the
     whole stack is 50 GB, well past what fits in memory.  Mapping lets
-    :class:`gpri.stack.DiffStack` walk the stack patch by patch and only ever
+    :class:`gpri_tools.stack.DiffStack` walk the stack patch by patch and only ever
     touch the rows it needs.
 
     ``SCOMPLEX`` cannot be mapped as complex (it is interleaved int16 and needs
