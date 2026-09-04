@@ -38,12 +38,17 @@ stack/         patch-wise access to a whole diff0 directory (50 GB, memory-mappe
 covariance/    sample coherence matrices
 phaselink/     EVD, eigenSAR, EMI and exact ML phase linking
 atmosphere/    range-dependent refractivity screens, estimated on wrapped phase
+aps/           network-consistent epoch screens, drift and turbulence
+glaciers/      RGI outlines: where the ice actually is, independent of coherence
 refractivity/  the same screens from meteorology, and per-epoch N
 closure/       closure-phase bias estimation and correction
 psinterp/      PS-interpolation unwrapping over decorrelated ground
 timeseries/    network inversion, stacking, LOS displacement
+pairlsq/       single-step pair-domain weighted least squares, with uncertainties
 diurnal/       harmonic analysis, and telling ice from atmosphere
 geocode/       polar radar geometry to a local stereographic map frame
+heading/       the scan heading, measured from a DEM's shadows
+coregister/    azimuth offsets of a campaign whose tripod turned
 plot/          figures, in radar and map geometry
 ```
 
