@@ -15,11 +15,11 @@ The ladder:
     A  reference only            per-epoch constant tied to bedrock
     B  + per-pair screens        matched-filter ramp + robust linear fit,
                                  per interferogram (the original pipeline)
-    C  + drift removal           gpri.aps.epoch_screen_correction: the screen
+    C  + drift removal           gpri_tools.aps.epoch_screen_correction: the screen
                                  model refitted per epoch on the integrated
                                  displacement over bedrock, killing the
                                  random-walk drift that B integrates
-    D  + turbulence              gpri.aps.turbulence_screen on each epoch's
+    D  + turbulence              gpri_tools.aps.turbulence_screen on each epoch's
                                  residual displacement: the non-parametric,
                                  spatially smooth part no polynomial catches
 
@@ -39,11 +39,11 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from gpri import atmosphere
-from gpri.aps import (displacement_ramp_to_delta_n, epoch_screen_correction,
+from gpri_tools import atmosphere
+from gpri_tools.aps import (displacement_ramp_to_delta_n, epoch_screen_correction,
                       turbulence_screen)
-from gpri.stack import DiffStack
-from gpri.timeseries import invert_network, los_displacement
+from gpri_tools.stack import DiffStack
+from gpri_tools.timeseries import invert_network, los_displacement
 
 # examples/site.py -- loaded by explicit path so the stdlib `site` module
 # cannot shadow it. All machine-specific paths live in site.env (gitignored).
@@ -65,12 +65,12 @@ def open_stack(scene: Path, antenna: str = "upper", lags=(1,), looks=(1, 1)):
     GAMMA only ever formed the upper-antenna daisy chain (``diff0``), so that
     exact product is used when it is what was asked for.  Anything else — the
     lower antenna, or a network with i->i+2 / i->i+3 pairs, or multilooked
-    products — is formed from the SLCs with :class:`gpri.stack.SlcPairStack`,
+    products — is formed from the SLCs with :class:`gpri_tools.stack.SlcPairStack`,
     which reproduces GAMMA's ``.diff`` to 1e-7 rad and its ``.cc`` to 0.014.
     If ``gpri coregister --write`` left an ``azimuth_offsets.json`` for the
     scene, the SLCs are shifted onto its reference grid as they are read.
     """
-    from gpri.stack import SlcPairStack
+    from gpri_tools.stack import SlcPairStack
     letter = antenna[0].lower()
     if letter not in "ul":
         raise ValueError(f"antenna must be upper or lower, not {antenna!r}")
@@ -85,7 +85,7 @@ def open_stack(scene: Path, antenna: str = "upper", lags=(1,), looks=(1, 1)):
         st = SlcPairStack.from_directory(scene / "slc", antenna=letter,
                                          lags=lags, looks=looks)
     # a tripod that turned (20180709: 5 deg in five hours) is read on one grid
-    from gpri.coregister import scene_azimuth_offsets
+    from gpri_tools.coregister import scene_azimuth_offsets
     return st.apply_azimuth_offsets(scene_azimuth_offsets(scene))
 
 
@@ -228,9 +228,9 @@ def main():
     stable = mean_cc >= args.stable_coherence
     if args.rgi:
         from baker_north_side import decimated_par
-        from gpri.geocode import BAKERBEND1_HEADING, RadarGeometry
-        from gpri.heading import scene_heading
-        from gpri.glaciers import load_outlines, stable_ground_mask
+        from gpri_tools.geocode import BAKERBEND1_HEADING, RadarGeometry
+        from gpri_tools.heading import scene_heading
+        from gpri_tools.glaciers import load_outlines, stable_ground_mask
         geom = RadarGeometry(decimated_par(stack.par, args.decimate),
                              heading=scene_heading(scene, default=BAKERBEND1_HEADING))
         la, lo = geom.geodetic(rows=[0, geom.shape[0] - 1],

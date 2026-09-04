@@ -5,9 +5,9 @@ import pytest
 gpd = pytest.importorskip("geopandas")
 from shapely.geometry import Polygon
 
-from gpri.gamma import ParFile
-from gpri.geocode import RadarGeometry
-from gpri.glaciers import glacier_mask, outline_paths, stable_ground_mask
+from gpri_tools.gamma import ParFile
+from gpri_tools.geocode import RadarGeometry
+from gpri_tools.glaciers import glacier_mask, outline_paths, stable_ground_mask
 
 PAR_TEXT = """Gamma Interferometric SAR Processor (ISP) - Image Parameter File
 sensor: GPRI 2.0

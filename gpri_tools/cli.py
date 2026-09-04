@@ -64,7 +64,7 @@ def _open(args):
         # Pairs formed from the SLCs: the lower antenna, a lag network with
         # closed triangles, multilooked products -- none of which GAMMA
         # wrote to diff0 -- or a scene focused by `gpri focus`, which has no
-        # diff0 at all.  See gpri.stack.SlcPairStack.
+        # diff0 at all.  See gpri_tools.stack.SlcPairStack.
         lags = lags or (1,)
         letter = antenna[0].lower()
         if letter == "u" and tab.exists():
@@ -330,7 +330,7 @@ def cmd_closure(args):
         raise SystemExit(
             "this network is a daisy chain and contains no closed triangles, so "
             "the closure bias is not estimable. Form the i->i+2 interferograms "
-            "(GAMMA SLC_intf, or gpri.covariance from the SLCs) and try again.")
+            "(GAMMA SLC_intf, or gpri_tools.covariance from the SLCs) and try again.")
 
     phase = np.empty((st.n_pairs,
                       len(range(*rows.indices(st.shape[0]))),
@@ -459,7 +459,7 @@ def cmd_phaselink(args):
     theta = phase_link(G, method=args.method, reference=args.reference)
     tcoh = temporal_coherence(G, theta)
     epochs = [imgs[e] for e in idx]
-    net = Network([__import__("gpri.network", fromlist=["parse_epoch"]).parse_epoch(e)
+    net = Network([__import__("gpri_tools.network", fromlist=["parse_epoch"]).parse_epoch(e)
                    for e in epochs], [(i, i + 1) for i in range(len(idx) - 1)])
     from .timeseries import displacement_from_phases
     d = displacement_from_phases(np.moveaxis(theta, -1, 0), par.wavelength,

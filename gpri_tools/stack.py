@@ -9,7 +9,7 @@ The tiling is not incidental.  Phase linking needs the N x N coherence matrix
 at every output pixel, which is ``723^2 * 16 = 8.4 MB`` *per pixel*, so the
 only way through the full stack is a small spatial window at a time — and
 :meth:`DiffStack.patches` hands you exactly that window across all epochs at
-once, which is the shape :mod:`gpri.covariance` and :mod:`gpri.phaselink` want.
+once, which is the shape :mod:`gpri_tools.covariance` and :mod:`gpri_tools.phaselink` want.
 """
 from __future__ import annotations
 
@@ -149,7 +149,7 @@ class DiffStack(_PairStack):
             ``SLC_tab``/``MLI_tab`` defining the epoch ordering.  Without it the
             epochs are taken to be the scenes that actually appear in the
             filenames, in time order.
-        par : path or :class:`gpri.gamma.ParFile`, optional
+        par : path or :class:`gpri_tools.gamma.ParFile`, optional
             Geometry for the interferograms.  Defaults to the first ``.off``
             beside them, then to the first SLC parameter file in ``slc_tab``.
         suffix : str
@@ -326,7 +326,7 @@ class SlcPairStack(_PairStack):
         SLCs in time order.  GPRI is tripod-mounted, so a deployment's scenes
         are coregistered already — unless the mount moved, for which see
         ``azimuth_shifts``.
-    par : path or :class:`gpri.gamma.ParFile`
+    par : path or :class:`gpri_tools.gamma.ParFile`
         Geometry of the SLCs (any one of them; they share it).
     lags : sequence of int
         Epoch offsets to pair, ``(i, i + lag)`` for every ``i``.
@@ -347,7 +347,7 @@ class SlcPairStack(_PairStack):
         default.
     azimuth_shifts : sequence of float, optional
         Lines by which each SLC is shifted along azimuth as it is read
-        (:func:`gpri.coregister.shift_azimuth`), one per image, so that a
+        (:func:`gpri_tools.coregister.shift_azimuth`), one per image, so that a
         campaign whose tripod turned is read on one grid.  Measured by
         ``gpri coregister``; see :meth:`apply_azimuth_offsets`.
     """
@@ -492,7 +492,7 @@ class SlcPairStack(_PairStack):
         """Shift every SLC by its recorded offset, ``{acquisition id: lines}``.
 
         The table ``gpri coregister --write`` leaves as
-        ``azimuth_offsets.json`` (:func:`gpri.coregister.scene_azimuth_offsets`);
+        ``azimuth_offsets.json`` (:func:`gpri_tools.coregister.scene_azimuth_offsets`);
         keyed by acquisition, so one measurement serves both antennas.
         ``None`` means the tripod held and is a no-op.
         """

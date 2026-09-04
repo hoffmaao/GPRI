@@ -1,6 +1,6 @@
 """Azimuth co-registration: did the tripod hold its heading all campaign?
 
-:class:`gpri.stack.SlcPairStack` assumes what a tripod promises — that every
+:class:`gpri_tools.stack.SlcPairStack` assumes what a tripod promises — that every
 scan of a campaign looks the same way, so line ``l`` of one SLC and line
 ``l`` of the next see the same ground.  Usually it does: 20170713_full,
 20170827 and 20170913 hold their heading to 0.03 deg over a day or two.
@@ -25,7 +25,7 @@ exact interpolator for a band-limited signal.  It preserves the
 interferometric phase: a scatterer's range does not depend on which line
 the antenna caught it on.  ``gpri coregister <scene> --write`` records the
 offsets as ``azimuth_offsets.json`` beside the scene's other sidecars and
-:meth:`gpri.stack.SlcPairStack.apply_azimuth_offsets` takes them up.  The
+:meth:`gpri_tools.stack.SlcPairStack.apply_azimuth_offsets` takes them up.  The
 scan heading is then measured once, on the reference (``gpri heading``
 shifts what it averages), and holds for every epoch.
 """

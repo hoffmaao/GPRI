@@ -4,8 +4,8 @@ import json
 import numpy as np
 import pytest
 
-from gpri.gamma import ParFile
-from gpri.heading import (heading_from_dem, polar_terrain, scene_heading,
+from gpri_tools.gamma import ParFile
+from gpri_tools.heading import (heading_from_dem, polar_terrain, scene_heading,
                           simulate_intensity, write_scene_heading)
 
 LAT0, LON0 = 48.8213, -121.9202

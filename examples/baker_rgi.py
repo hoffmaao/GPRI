@@ -41,9 +41,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from baker_aps import SCENES, open_stack                           # noqa: E402
 from baker_north_side import decimated_par, read_backdrop          # noqa: E402
 
-from gpri.geocode import BAKERBEND1_HEADING, RadarGeometry, geocode  # noqa: E402
-from gpri.heading import scene_heading                              # noqa: E402
-from gpri.glaciers import (glacier_mask, load_outlines, outline_paths,  # noqa: E402
+from gpri_tools.geocode import BAKERBEND1_HEADING, RadarGeometry, geocode  # noqa: E402
+from gpri_tools.heading import scene_heading                              # noqa: E402
+from gpri_tools.glaciers import (glacier_mask, load_outlines, outline_paths,  # noqa: E402
                            stable_ground_mask)
 
 

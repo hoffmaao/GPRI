@@ -34,7 +34,7 @@ Estimators
 
 All of them accept ``Gamma`` with any number of leading spatial axes —
 ``(..., N, N)`` in, ``(..., N)`` out — so a whole patch is estimated in one
-call.  Memory is the binding constraint: see :mod:`gpri.covariance`.
+call.  Memory is the binding constraint: see :mod:`gpri_tools.covariance`.
 """
 from __future__ import annotations
 
@@ -248,7 +248,7 @@ def phase_link(Gamma, method="emi", reference=0, **kwargs):
     ----------
     Gamma : array (..., N, N) complex
         Hermitian coherence matrices, e.g. from
-        :func:`gpri.covariance.coherence_from_slcs`.
+        :func:`gpri_tools.covariance.coherence_from_slcs`.
     method : {'evd', 'eigensar', 'emi', 'mle'}
     reference : int or None
         Epoch held at zero phase.  ``None`` leaves the arbitrary global phase
@@ -258,7 +258,7 @@ def phase_link(Gamma, method="emi", reference=0, **kwargs):
     -------
     theta : array (..., N) complex
         Unit-modulus per-epoch phase.  Take ``np.angle`` for radians, and feed
-        straight into :func:`gpri.timeseries.displacement_from_phases`.
+        straight into :func:`gpri_tools.timeseries.displacement_from_phases`.
     """
     try:
         fn = _ESTIMATORS[method]
@@ -280,7 +280,7 @@ def temporal_coherence(Gamma, theta, mask=None):
     1 means every observed pair is explained exactly.  Values below ~0.6 are
     conventionally masked out; on a decorrelating surface most pixels will be.
     ``mask`` (``(N, N)`` bool, as returned by
-    :func:`gpri.covariance.coherence_from_interferograms`) restricts the average
+    :func:`gpri_tools.covariance.coherence_from_interferograms`) restricts the average
     to pairs that were actually observed.
     """
     Gamma = _as_matrix_stack(Gamma)

@@ -17,12 +17,12 @@ morning recovery is not — so a "linear trend anomaly" is the waveform with a
 tilt taken out of it and the rate it reports is biased by the same tilt.  On
 a record longer than one cycle the separation can be made without assuming
 any shape: the displacement between an epoch and the one 24 h later contains
-no 24 h-periodic part at all (:func:`gpri.diurnal.secular_slope`).  Where the
+no 24 h-periodic part at all (:func:`gpri_tools.diurnal.secular_slope`).  Where the
 record allows it (20170803's 24.2 h just does; 20170827's 44.9 h comfortably)
 the secular rate is taken from those same-hour differences and the anomaly
 is measured from that line; the linear version is drawn beside it for
 comparison, and a record under one cycle keeps the line.  For two or more
-UTC days the hour-of-day composite (:func:`gpri.diurnal.hour_composite`) is
+UTC days the hour-of-day composite (:func:`gpri_tools.diurnal.hour_composite`) is
 the shape-agnostic estimate of the cycle itself, and what is left after it
 is what did not repeat.
 
@@ -56,10 +56,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from baker_aps import SCENES, integrate, load, split_mask          # noqa: E402
 
-from gpri.aps import epoch_screen_correction, turbulence_screen    # noqa: E402
-from gpri.diurnal import (DIURNAL, MIN_CYCLES, hour_composite,     # noqa: E402
+from gpri_tools.aps import epoch_screen_correction, turbulence_screen    # noqa: E402
+from gpri_tools.diurnal import (DIURNAL, MIN_CYCLES, hour_composite,     # noqa: E402
                           m_per_yr, secular_slope)
-from gpri.timeseries import los_displacement                       # noqa: E402
+from gpri_tools.timeseries import los_displacement                       # noqa: E402
 
 
 def population_path(scene: Path, antenna: str, dec: int) -> Path:
@@ -124,9 +124,9 @@ def main():
     if args.rgi:
         import os as _os
         from baker_north_side import decimated_par
-        from gpri.geocode import BAKERBEND1_HEADING, RadarGeometry
-        from gpri.heading import scene_heading
-        from gpri.glaciers import glacier_mask, load_outlines, stable_ground_mask
+        from gpri_tools.geocode import BAKERBEND1_HEADING, RadarGeometry
+        from gpri_tools.heading import scene_heading
+        from gpri_tools.glaciers import glacier_mask, load_outlines, stable_ground_mask
         geom = RadarGeometry(decimated_par(stack.par, args.decimate),
                              heading=scene_heading(scene, default=BAKERBEND1_HEADING))
         la, lo = geom.geodetic(rows=[0, geom.shape[0] - 1],

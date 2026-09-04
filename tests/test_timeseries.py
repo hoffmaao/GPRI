@@ -10,8 +10,8 @@ from datetime import datetime, timedelta
 import numpy as np
 import pytest
 
-from gpri.network import Network
-from gpri.timeseries import (TimeSeries, closure_phase, closure_residual_mask,
+from gpri_tools.network import Network
+from gpri_tools.timeseries import (TimeSeries, closure_phase, closure_residual_mask,
                              displacement_from_phases, invert_network,
                              los_displacement, phase_from_los,
                              reference_to_stable, stack_velocity, triplets,

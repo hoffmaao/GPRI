@@ -42,7 +42,7 @@ useful for this question.
 
 Stage means: **raw** — FMCW sweeps only, which `gpri focus` turns into SLCs
 for both antennas (a port of GAMMA's `gpri2_proc.py`, validated to float32
-rounding against the 20170803 archive); **slc** — focused complex images, which `gpri.stack.SlcPairStack` turns into
+rounding against the 20170803 archive); **slc** — focused complex images, which `gpri_tools.stack.SlcPairStack` turns into
 interferograms and coherence on demand (either antenna, any lag set, any
 multilook — validated against GAMMA's own `.diff`/`.cc`); **diff** —
 interferograms already formed by GAMMA.  For this package **slc** and
@@ -62,7 +62,7 @@ worth far more than one cycle for three reasons:
    The same holds for a waveform that is not a sinusoid. The one estimate
    of the secular rate that no 24 h-periodic shape can bias is the
    difference between epochs exactly a day apart
-   (`gpri.diurnal.secular_slope`); on a 24.2 h record that is five pairs of
+   (`gpri_tools.diurnal.secular_slope`); on a 24.2 h record that is five pairs of
    epochs at the two ends, on 44.9 h it is every epoch of the first 20.9 h
    against its partner a day later.
 2. Two cycles let you check whether the diurnal **repeats**. A signal that
@@ -76,7 +76,7 @@ already written, pointing at an SLC directory that does not exist — set up
 for processing and never processed, or the SLCs were deleted. Its `itab_mr`
 is an *i*→*i*+3 network, not a daisy chain, so unlike 20170803 it has closed
 triangles: `gpri closure` works on it, and the pair-domain least squares in
-`gpri.pairlsq` gains real sensitivity from the longer combinations.
+`gpri_tools.pairlsq` gains real sensitivity from the longer combinations.
 
 `gpri focus <campaign> <scene> --workers 6` writes the scene (2670 SLCs,
 ~90 minutes, limited by how fast the raw can be read). What the raw actually
@@ -106,7 +106,7 @@ supply the *i*→*i*+2, *i*→*i*+3 (and longer) pairs the shipped daisy chain
 lacks, so closure phase is measurable on this day too.
 
 `20170713` as shipped spans 21.8 h — **0.91 of a cycle**.
-`gpri.diurnal.harmonic_design` refuses it, correctly: over less than one
+`gpri_tools.diurnal.harmonic_design` refuses it, correctly: over less than one
 period the amplitude and the secular rate are not separable, and a number
 returned there would be meaningless. The raw archive holds 271 acquisitions
 (the survey's 279 counted `.raw.log` files) over 23.9 h — 0.996 of a cycle,
@@ -147,7 +147,7 @@ from late August or September 2019**, though the field plan for that summer
 anticipated a second trip. Nothing later than 2019-07-21 exists in any copy.
 
 Two archive quirks turned up while focusing these and `20160826`, and
-`gpri.focus.find_raw` now handles both: the 2016 archive was written from a
+`gpri_tools.focus.find_raw` now handles both: the 2016 archive was written from a
 Mac and carries `._`-prefixed AppleDouble stubs beside the real files (a 4 KB
 "parameter file" with no `time_start`), and seven of its `.raw`/`.raw_par`
 pairs are zero bytes. The stubs are skipped — they carry the same timestamps
@@ -167,11 +167,11 @@ other 44 acquisitions.
    (`bin/run_scene.sh 20170713_full`, half an hour). It is the quiet
    campaign: no per-pixel diurnal detection, no net line-of-sight rate over
    the coherent ice, and a night-time trough of a quarter the August depth
-   at the same hours (`examples/baker_seasons.py`, README "Eight campaigns
+   at the same hours (`examples/baker_seasons.py`, [`baker.md`](baker.md) "Eight campaigns
    on one clock").
 4. `20170913` (14.5 h) and `20180709` (6.9 h) fall short of a cycle even
    fully processed. They are useful for rates, not for diurnal phase, and
-   the scripts fit rates on them (`MIN_CYCLES` in `gpri.diurnal` refuses the
+   the scripts fit rates on them (`MIN_CYCLES` in `gpri_tools.diurnal` refuses the
    harmonic). Both are focused (`gpri focus`) and run through the chain.
    What focusing them showed:
    - `20170913` was acquired on **2017-09-15** (05:57–20:29 UTC), not the
@@ -183,13 +183,13 @@ other 44 acquisitions.
      17.9 h between first and last file. `gpri focus` writes all 203;
      the set-up scans are moved out of `slc/` (`slc_setup/`) and the tabs
      regenerated before the chain runs. During its first 4.8 h the mount
-     turned 5.1° (`gpri coregister`, README "Did the tripod hold?"); the
+     turned 5.1° (`gpri coregister`, [`baker.md`](baker.md) "Did the tripod hold?"); the
      recorded offsets put every epoch on the stable block's grid.
 5. `20180808` and `20190719`, the two campaigns off the backup: both are
    two-cycle records and both go through the chain unchanged
    (`bin/run_scene.sh 20180808`, `bin/run_scene.sh 20190719`). With
    `20170827` they make three campaigns in three years that can be asked
-   whether the diurnal repeats (`examples/baker_composite.py`, README "Does
+   whether the diurnal repeats (`examples/baker_composite.py`, [`baker.md`](baker.md) "Does
    it repeat between years?").
 6. `20170803_full`: the August 2017 day refocused from its raw archive. The
    GAMMA scene ships a `diff0`, and `bin/run_scene.sh` skips co-registration

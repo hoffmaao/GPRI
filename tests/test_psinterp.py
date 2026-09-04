@@ -2,9 +2,9 @@
 import numpy as np
 import pytest
 
-from gpri.psinterp import (amplitude_dispersion, interpolate_ps, ps_density,
+from gpri_tools.psinterp import (amplitude_dispersion, interpolate_ps, ps_density,
                            select_ps, unwrap_sparse, unwrap_with_ps)
-from gpri.timeseries import wrap
+from gpri_tools.timeseries import wrap
 
 
 def _smooth_field(shape=(60, 80), amplitude=14.0, seed=0):

@@ -2,8 +2,8 @@
 import numpy as np
 import pytest
 
-from gpri.gamma import ParFile
-from gpri.geocode import (BAKERBEND1_HEADING, RadarGeometry, geocode,
+from gpri_tools.gamma import ParFile
+from gpri_tools.geocode import (BAKERBEND1_HEADING, RadarGeometry, geocode,
                           heading_from_tiepoint, local_stereographic, map_grid)
 
 # The real BakerBend1 upper-antenna geometry, trimmed to the keys geocoding uses.

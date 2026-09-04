@@ -2,10 +2,10 @@
 import numpy as np
 import pytest
 
-from gpri.closure import (BiasModel, baseline_bins, closure_design_matrix,
+from gpri_tools.closure import (BiasModel, baseline_bins, closure_design_matrix,
                           closure_rms, correct_bias, estimate_bias)
-from gpri.network import Network
-from gpri.timeseries import closure_phase, triplets, wrap
+from gpri_tools.network import Network
+from gpri_tools.timeseries import closure_phase, triplets, wrap
 from datetime import datetime, timedelta
 
 

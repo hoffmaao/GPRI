@@ -46,11 +46,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from baker_aps import SCENES, integrate, load, split_mask          # noqa: E402
 
-from gpri.aps import epoch_screen_correction, turbulence_screen    # noqa: E402
-from gpri.diurnal import DIURNAL, m_per_yr                         # noqa: E402
-from gpri.network import Network                                   # noqa: E402
-from gpri.pairlsq import fit_pairs                                 # noqa: E402
-from gpri.timeseries import los_displacement                       # noqa: E402
+from gpri_tools.aps import epoch_screen_correction, turbulence_screen    # noqa: E402
+from gpri_tools.diurnal import DIURNAL, m_per_yr                         # noqa: E402
+from gpri_tools.network import Network                                   # noqa: E402
+from gpri_tools.pairlsq import fit_pairs                                 # noqa: E402
+from gpri_tools.timeseries import los_displacement                       # noqa: E402
 
 
 def window_fit(obs, net, w_pair, t_lo, t_hi, label):
@@ -146,9 +146,9 @@ def main():
     if args.rgi:
         import os as _os
         from baker_north_side import decimated_par
-        from gpri.geocode import BAKERBEND1_HEADING, RadarGeometry
-        from gpri.heading import scene_heading
-        from gpri.glaciers import glacier_mask, load_outlines, stable_ground_mask
+        from gpri_tools.geocode import BAKERBEND1_HEADING, RadarGeometry
+        from gpri_tools.heading import scene_heading
+        from gpri_tools.glaciers import glacier_mask, load_outlines, stable_ground_mask
         geom = RadarGeometry(decimated_par(stack.par, args.decimate),
                              heading=scene_heading(scene, default=BAKERBEND1_HEADING))
         la, lo = geom.geodetic(rows=[0, geom.shape[0] - 1],

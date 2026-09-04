@@ -1,9 +1,9 @@
-"""Tests for gpri.focus: raw FMCW sweeps to SLCs, as GAMMA's gpri2_proc.py."""
+"""Tests for gpri_tools.focus: raw FMCW sweeps to SLCs, as GAMMA's gpri2_proc.py."""
 import numpy as np
 import pytest
 
-from gpri import focus
-from gpri.gamma import ParFile, read_slc
+from gpri_tools import focus
+from gpri_tools.gamma import ParFile, read_slc
 
 # A raw_par as the GPRI-II writes it (values from the BakerBend campaigns,
 # with a short sweep so the synthetic file stays small).
@@ -200,7 +200,7 @@ def test_focus_campaign_writes_scene(tmp_path):
     done2 = focus.focus_campaign(camp, scene, opts, workers=1, log=lambda *a: None)
     assert done2 == done
 
-    from gpri.stack import SlcPairStack
+    from gpri_tools.stack import SlcPairStack
     st = SlcPairStack.from_tab(scene / "SLCu_tab", lags=(1,))
     assert st.n_pairs == 3
 

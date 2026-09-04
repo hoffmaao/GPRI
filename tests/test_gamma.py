@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 
-from gpri.gamma import (DTYPES, ParFile, azimuth_angles, dtype_for, ground_range,
+from gpri_tools.gamma import (DTYPES, ParFile, azimuth_angles, dtype_for, ground_range,
                         map_image, read_image, read_slc, write_image)
 
 PAR = """Gamma Interferometric SAR Processor (ISP) - Image Parameter File

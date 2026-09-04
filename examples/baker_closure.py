@@ -6,7 +6,7 @@
 
 The 20170803 and 20170713 stacks *as shipped* are daisy chains — zero
 triangles, closure not estimable, and ``gpri closure`` refuses them.  But the
-SLCs are on disk, and :class:`gpri.stack.SlcPairStack` forms the i->i+2 and
+SLCs are on disk, and :class:`gpri_tools.stack.SlcPairStack` forms the i->i+2 and
 i->i+3 pairs that GAMMA never did, so the Chen bias can be measured on the
 day the diurnal analysis actually uses (``--lags``).  20160826 is different: GAMMA
 processed it into **two** networks over the same epochs, a single-reference set
@@ -33,7 +33,7 @@ Two things this run demonstrates, one methodological and one physical:
     the expected sign and shape, and on the 20170827 campaign — whose itab is
     ``i -> i+3`` and closes natively — it will matter more over 45 hours.
 
-As everywhere in :mod:`gpri.closure`: a bias linear in baseline is invisible
+As everywhere in :mod:`gpri_tools.closure`: a bias linear in baseline is invisible
 here, and that is exactly a velocity.  Nothing in this figure validates a rate.
 """
 from __future__ import annotations
@@ -48,11 +48,11 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from gpri.closure import closure_rms, correct_bias, estimate_bias
-from gpri.gamma import ParFile, map_image
-from gpri.network import Network, parse_epoch
-from gpri.stack import find_pairs
-from gpri.timeseries import triplets
+from gpri_tools.closure import closure_rms, correct_bias, estimate_bias
+from gpri_tools.gamma import ParFile, map_image
+from gpri_tools.network import Network, parse_epoch
+from gpri_tools.stack import find_pairs
+from gpri_tools.timeseries import triplets
 
 import importlib.util as _ilu
 import os as _os

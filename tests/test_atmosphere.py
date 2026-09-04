@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 
-from gpri.atmosphere import (MODELS, PhaseScreen, delta_refractivity,
+from gpri_tools.atmosphere import (MODELS, PhaseScreen, delta_refractivity,
                              design_matrix, estimate_range_ramp, fit_screen,
                              ramp_objective, remove_screen, stable_mask)
 

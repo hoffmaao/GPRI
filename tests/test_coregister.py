@@ -5,11 +5,11 @@ import numpy as np
 import pytest
 from scipy.ndimage import uniform_filter1d
 
-from gpri.coregister import (acquisition_id, azimuth_offset, campaign_offsets,
+from gpri_tools.coregister import (acquisition_id, azimuth_offset, campaign_offsets,
                              scene_azimuth_offsets, shift_azimuth, shifts_for,
                              texture, write_azimuth_offsets)
-from gpri.gamma import write_image
-from gpri.stack import SlcPairStack
+from gpri_tools.gamma import write_image
+from gpri_tools.stack import SlcPairStack
 
 PAR = """Gamma Interferometric SAR Processor (ISP) - Image Parameter File
 title: synthetic

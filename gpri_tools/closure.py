@@ -11,7 +11,7 @@ proof that the pairwise phases are **not** differences of a single per-epoch
 quantity — the interferograms carry something that is not epoch-separable.
 
 Two things do that.  Unwrapping errors, which are multiples of ``2 pi`` and are
-handled by :func:`gpri.timeseries.closure_residual_mask`.  And a genuine
+handled by :func:`gpri_tools.timeseries.closure_residual_mask`.  And a genuine
 physical bias: short-baseline interferograms are systematically biased by
 changes in the scattering medium itself (De Zan et al. 2014; Zheng, Zebker &
 Michaelides 2022), so that a chain of short pairs does not sum to the long pair
@@ -195,7 +195,7 @@ def estimate_bias(pair_phase, network, trip=None, bins=None, n_bins=None,
         Interferometric **phase** (not displacement).  Used wrapped, so it does
         not need unwrapping — which is the point: the bias is estimable before
         any unwrapping decision has been made.
-    network : :class:`gpri.network.Network`
+    network : :class:`gpri_tools.network.Network`
     trip : (n_triplets, 3) int, optional
         Triangles to use.  Defaults to every triangle in the network.  A pure
         daisy chain has none — add the ``i -> i+2`` pairs to get closure.

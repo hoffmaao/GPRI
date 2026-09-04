@@ -82,7 +82,7 @@ def select_ps(amplitudes=None, dispersion=None, coherence=None,
 
     Give it either a stack of ``amplitudes`` (epoch axis first) or a
     precomputed ``dispersion`` image, and optionally a ``coherence`` image —
-    temporal coherence from :func:`gpri.phaselink.temporal_coherence` is the
+    temporal coherence from :func:`gpri_tools.phaselink.temporal_coherence` is the
     natural companion, since it measures exactly the thing the amplitude
     dispersion only proxies for.
 
@@ -445,7 +445,7 @@ def unwrap_with_ps(phase, mask=None, amplitudes=None, coherence=None,
     coords : (n_pixels, 2) array, optional
         Physical coordinates for every grid pixel, ``(azimuth_m, range_m)``.
         Strongly recommended for GPRI, where pixel spacing is wildly anisotropic
-        — see :func:`gpri.gamma.ground_range`.
+        — see :func:`gpri_tools.gamma.ground_range`.
     weights : array, optional
         Per-pixel quality (coherence is the obvious choice) steering both the
         spanning tree and the choice of reference.
