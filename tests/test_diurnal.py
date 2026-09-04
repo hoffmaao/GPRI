@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 
-from gpri.diurnal import (DIURNAL, MIN_CYCLES, SEMIDIURNAL, atmospheric_coherence,
+from gpri_tools.diurnal import (DIURNAL, MIN_CYCLES, SEMIDIURNAL, atmospheric_coherence,
                           hour_composite, m_per_yr, periodic_detrend,
                           secular_slope,
                           decompose_los, diurnal_amplitude, diurnal_phase,
@@ -264,7 +264,7 @@ def test_decompose_los_accounts_for_an_uplift_component():
 
 def test_a_record_a_few_minutes_short_of_a_cycle_is_accepted():
     """23.9 h is the same fit as 24 h (MIN_CYCLES); 22 h is not."""
-    from gpri.diurnal import MIN_CYCLES
+    from gpri_tools.diurnal import MIN_CYCLES
     assert 0.95 <= MIN_CYCLES < 1.0
     ok = _times(hours=23.9)
     assert harmonic_design(ok, periods=(DIURNAL,)).shape[1] == 4

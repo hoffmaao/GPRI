@@ -14,7 +14,7 @@ Workflow
 1. :func:`load_outlines` reads RGI polygons (shapefile, or the nested
    region zips inside the global RGI distribution) clipped to a bounding box.
 2. :func:`glacier_mask` rasterises them onto the radar grid through
-   :class:`gpri.geocode.RadarGeometry` — so it inherits the scan-heading
+   :class:`gpri_tools.geocode.RadarGeometry` — so it inherits the scan-heading
    caveat: with the heading wrong the mask lands in the wrong place, and the
    overlay figure is itself a check on the heading.
 3. :func:`stable_ground_mask` is the corrected reference selector:

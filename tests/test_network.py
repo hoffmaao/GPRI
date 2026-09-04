@@ -4,7 +4,7 @@ from datetime import datetime
 import numpy as np
 import pytest
 
-from gpri.network import (Network, parse_epoch, read_itab, read_slc_tab,
+from gpri_tools.network import (Network, parse_epoch, read_itab, read_slc_tab,
                           read_tab, scene_id, write_itab)
 
 

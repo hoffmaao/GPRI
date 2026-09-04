@@ -18,12 +18,12 @@ way round — **positive toward the radar** — so
     d_ij = -(lambda / 4 pi) * psi_ij                (:func:`los_displacement`)
 
 and since ``d_ij`` is the motion of ``j`` relative to ``i``, it is exactly the
-``d_j - d_i`` quantity that :meth:`gpri.network.Network.design_matrix` builds
+``d_j - d_i`` quantity that :meth:`gpri_tools.network.Network.design_matrix` builds
 its rows for.  That is why :func:`invert_network` takes displacements (or
 negated phase) rather than raw phase: converting first makes the design matrix
 and the observations agree, instead of hiding a sign flip inside the solver.
 
-Phases coming out of :mod:`gpri.phaselink` are per-epoch ``theta``, already in
+Phases coming out of :mod:`gpri_tools.phaselink` are per-epoch ``theta``, already in
 the ``psi_ij = theta_i - theta_j`` convention, so
 :func:`displacement_from_phases` converts them directly with no inversion at
 all — phase linking has done the network inversion implicitly.
@@ -53,7 +53,7 @@ def los_displacement(phase, wavelength):
     ``d = -(lambda / 4 pi) * psi``.  For BakerBend1 (Ku band,
     lambda = 1.743 cm) one full fringe is 8.7 mm of range change — which is why
     a GPRI can see millimetre motion, and why the atmosphere in
-    :mod:`gpri.atmosphere` is such a problem.
+    :mod:`gpri_tools.atmosphere` is such a problem.
 
     Give it **unwrapped** phase.  Wrapped phase in gives displacement modulo
     lambda/2 out, which is rarely what you want.
@@ -67,7 +67,7 @@ def phase_from_los(displacement, wavelength):
 
 
 def displacement_from_phases(theta, wavelength, reference=0, axis=-1):
-    """Per-epoch phase from :mod:`gpri.phaselink` -> LOS displacement series.
+    """Per-epoch phase from :mod:`gpri_tools.phaselink` -> LOS displacement series.
 
     ``theta`` may be the complex unit-modulus vector the estimators return, or
     real angles.  Displacement is relative to the ``reference`` epoch and
@@ -141,7 +141,7 @@ def invert_network(observations, network, weights=None, method="lstsq",
         One value per interferogram, in the ``d_j - d_i`` convention — i.e.
         **LOS displacement**, from :func:`los_displacement` applied to unwrapped
         phase.  Passing raw phase inverts the sign of the answer.
-    network : :class:`gpri.network.Network`
+    network : :class:`gpri_tools.network.Network`
     weights : array, optional
         ``(n_pairs,)`` for weights shared by every pixel — one factorisation,
         fast.  ``(n_pairs, ...)`` for per-pixel weights, which needs one solve
@@ -435,7 +435,7 @@ def reference_to_stable(displacement, reference_mask, method="median",
     coherent, and on a mountain flank it is *diurnal*, because that is what the
     atmosphere does.  It appears on bedrock at the same amplitude and phase as
     on ice, which is the tell — and the reason
-    :func:`gpri.diurnal.stable_ground_null` exists.
+    :func:`gpri_tools.diurnal.stable_ground_null` exists.
 
     The fix is to subtract, at each epoch, a robust average over ground known
     not to be moving.  Displacement is then relative to that ground, which is

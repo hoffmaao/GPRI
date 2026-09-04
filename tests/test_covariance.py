@@ -2,9 +2,9 @@
 import numpy as np
 import pytest
 
-from gpri.covariance import (coherence_from_interferograms, coherence_from_slcs,
+from gpri_tools.covariance import (coherence_from_interferograms, coherence_from_slcs,
                              regularize)
-from gpri.phaselink import phase_link
+from gpri_tools.phaselink import phase_link
 
 
 def _stack(n=4, a=40, r=40, theta=None, seed=0):

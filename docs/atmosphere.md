@@ -20,8 +20,8 @@ no correction ever saw the scoring pixels.
 |---|---|---|
 | A | reference only | per-epoch constant tied to bedrock |
 | B | + per-pair screens | matched-filter ramp + robust linear fit per interferogram |
-| C | + drift removal | `gpri.aps.epoch_screen_correction` — screen refitted per epoch on the integrated displacement over bedrock |
-| D | + turbulence | `gpri.aps.turbulence_screen` — normalised convolution of each epoch's residual over bedrock |
+| C | + drift removal | `gpri_tools.aps.epoch_screen_correction` — screen refitted per epoch on the integrated displacement over bedrock |
+| D | + turbulence | `gpri_tools.aps.turbulence_screen` — normalised convolution of each epoch's residual over bedrock |
 
 ## Results
 
@@ -63,7 +63,7 @@ its ground):
 | D + turbulence | 30.05 mm | 28.41 mm | 29.65 mm | 39.44 mm | 38.47 mm |
 
 The third column is the same day seen by the GPRI's second (lower) receive
-antenna, formed from its SLCs with `gpri.stack.SlcPairStack` and run through
+antenna, formed from its SLCs with `gpri_tools.stack.SlcPairStack` and run through
 the identical ladder (`--antenna lower`). It replicates the upper antenna's
 table stage for stage — same shape, same verdict on the per-pair screens —
 with a slightly larger held-out reference (4,551 px against 3,816; the
@@ -118,7 +118,7 @@ summer days.
 
 The four scenes processed since — `20170803_full`, `20180808`, `20190719`
 and `20160826_full` — are scored on held-out rock the same way in the
-README's ["Eight campaigns on one clock"](../README.md#eight-campaigns-on-one-clock)
+[`baker.md`](baker.md)'s ["Eight campaigns on one clock"](baker.md#eight-campaigns-on-one-clock)
 table, and do not change the verdict: stage D is 99–105 % of plain
 referencing on all four. That table carries stage A and stage D of the
 upper antenna only; the intermediate stages and the lower-antenna rows of
@@ -184,7 +184,7 @@ of `12_aps_*.png` shows RMS rising as √t — a per-pixel random walk from
 single-look phase noise integrating over hundreds of pairs. That component is
 spatially uncorrelated, so no atmospheric model can or should remove it; it
 averages down as √N under spatial averaging or multilooking, which is the
-correct next lever (and what `gpri.phaselink` is for). Treat ~20 mm per pixel
+correct next lever (and what `gpri_tools.phaselink` is for). Treat ~20 mm per pixel
 at 22 h as the single-look noise floor of these stacks, not as an atmospheric
 residual.
 
@@ -209,14 +209,14 @@ ramp the matched filter already fits. Separating them requires per-pixel
 terrain height. A DEM now does accompany the data — the Copernicus tile
 `gpri heading` measures the scan heading against — so the term is
 identifiable in principle. It has not been fitted, and the caveat that
-runs through the README stands until it is: rock sitting at the rock's
+runs through [`baker.md`](baker.md) stands until it is: rock sitting at the rock's
 heights cannot see a term that shows only on the higher, farther ice.
 
 ## Recommended pipeline
 
 ```python
-from gpri import aps, atmosphere
-from gpri.timeseries import los_displacement
+from gpri_tools import aps, atmosphere
+from gpri_tools.timeseries import los_displacement
 
 # per-pair screens: keep them for per-interferogram products and the dN series,
 # fit them on bedrock, and do not expect them to improve the integrated series

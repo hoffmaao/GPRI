@@ -54,7 +54,7 @@ What this does not fix
 ----------------------
 The model must still be right.  A diurnal atmospheric residual fits a diurnal
 harmonic beautifully, single-step or not — the ice-vs-air tests in
-:mod:`gpri.diurnal` (range dependence, refractivity regression, bedrock null)
+:mod:`gpri_tools.diurnal` (range dependence, refractivity regression, bedrock null)
 apply to these estimates exactly as before.  Pass the per-epoch refractivity
 series as a ``covariates`` column to project the atmosphere out *inside* the
 fit rather than after it.
@@ -75,7 +75,7 @@ def temporal_design(times, periods=(DIURNAL,), degree=1, covariates=None):
     Columns: ``1, t, t^2, ..., cos/sin per period, covariates...`` with ``t``
     in days.  ``covariates`` is an optional ``(n_epochs, k)`` array (or dict
     of name -> series) of extra regressors known per epoch — the per-epoch
-    refractivity series from :func:`gpri.refractivity.invert_refractivity` is
+    refractivity series from :func:`gpri_tools.refractivity.invert_refractivity` is
     the intended use.
     """
     t = np.asarray(times, float)
@@ -113,7 +113,7 @@ def pair_design(times, pairs, periods=(DIURNAL,), degree=1, covariates=None,
     dropped for the same reason, and the returned ``names`` say what survived.
 
     Refuses a record shorter than the longest period, for the same reason
-    :func:`gpri.diurnal.harmonic_design` does: amplitude and rate are not
+    :func:`gpri_tools.diurnal.harmonic_design` does: amplitude and rate are not
     separable over a fraction of a cycle, and a returned number would be
     meaningless.
     """
@@ -185,7 +185,7 @@ class PairModelFit:
         return np.arctan2(self.params[ib], self.params[ia])
 
     def peak_time(self, period=DIURNAL, origin_hour=0.0):
-        """Hour of day of the harmonic peak, as in :class:`gpri.diurnal.HarmonicFit`."""
+        """Hour of day of the harmonic peak, as in :class:`gpri_tools.diurnal.HarmonicFit`."""
         hours = (self.phase(period) / (2.0 * np.pi)) * period * 24.0
         return np.mod(origin_hour + hours, period * 24.0)
 
@@ -236,12 +236,12 @@ def fit_pairs(observations, network, periods=(DIURNAL,), degree=1,
     ----------
     observations : array (n_pairs, ...)
         Pair values in the ``d_j - d_i`` convention — LOS displacement from
-        :func:`gpri.timeseries.los_displacement`, exactly as
-        :func:`gpri.timeseries.invert_network` takes.  For a corrected series
+        :func:`gpri_tools.timeseries.los_displacement`, exactly as
+        :func:`gpri_tools.timeseries.invert_network` takes.  For a corrected series
         that only exists in epoch form, re-difference it:
         ``obs[p] = d[j] - d[i]`` puts the epoch-domain corrections onto the
         pairs without disturbing the pair noise structure.
-    network : :class:`gpri.network.Network`
+    network : :class:`gpri_tools.network.Network`
     weights : (n_pairs,) or (n_pairs, ...) array, optional
         Inverse-variance up to a scale — per-pair coherence-derived weights
         are the point of the exercise.  1-D weights share one factorisation

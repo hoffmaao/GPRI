@@ -67,10 +67,10 @@ def design_matrix(model, slant_range, azimuth=None):
         A key of :data:`MODELS`, or an explicit term list.
     slant_range : array (nr,)
         Slant range per range sample, metres.  Use
-        :meth:`gpri.gamma.ParFile.slant_range`.
+        :meth:`gpri_tools.gamma.ParFile.slant_range`.
     azimuth : array (na,), optional
         Azimuth angle per line, degrees.  Required by any model with an ``a``
-        term; use :func:`gpri.gamma.azimuth_angles`.
+        term; use :func:`gpri_tools.gamma.azimuth_angles`.
 
     Returns
     -------
@@ -374,7 +374,7 @@ def fit_screen(phase, par=None, slant_range=None, azimuth=None, weights=None,
     phase : array (na, nr)
         Wrapped interferometric phase in radians, or the complex interferogram
         itself (its phase is used and its magnitude becomes the default weight).
-    par : :class:`gpri.gamma.ParFile`, optional
+    par : :class:`gpri_tools.gamma.ParFile`, optional
         Supplies ``slant_range``, ``azimuth`` and ``wavelength`` if not given.
     weights : array (na, nr), optional
         Per-pixel weight — coherence is the natural choice.

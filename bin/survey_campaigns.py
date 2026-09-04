@@ -18,7 +18,7 @@ processing stage reached:
 ``slc``
     Focused single-look complex images.  Interferograms can be formed from
     these with numpy alone — no GAMMA needed — via
-    :func:`gpri.covariance.coherence_from_slcs`.
+    :func:`gpri_tools.covariance.coherence_from_slcs`.
 ``diff``
     Interferograms already formed.  Ready for the whole package.
 

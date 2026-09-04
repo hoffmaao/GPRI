@@ -8,7 +8,7 @@ left; ``baker_seasons.py`` lays every UTC day of that on one clock.  The
 question after those two is how much of the detrended displacement comes back
 at the same hour on the next day.  For every campaign with two or more UTC days
 this stacks them into an hour-of-day composite
-(:func:`gpri.diurnal.hour_composite`) — the shape-agnostic diurnal, no sinusoid
+(:func:`gpri_tools.diurnal.hour_composite`) — the shape-agnostic diurnal, no sinusoid
 assumed — and draws it over the days it came from, with the day-to-day spread
 as a band.
 
@@ -37,7 +37,7 @@ from baker_aps import SCENES                                        # noqa: E402
 from baker_population import population_path                       # noqa: E402
 from baker_seasons import hourly, load_days                         # noqa: E402
 
-from gpri.diurnal import hour_composite                             # noqa: E402
+from gpri_tools.diurnal import hour_composite                             # noqa: E402
 
 
 def composite_of(days, which: int):

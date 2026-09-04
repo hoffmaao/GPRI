@@ -3,9 +3,9 @@ import numpy as np
 import pytest
 from datetime import datetime, timedelta
 
-from gpri.atmosphere import PhaseScreen, delta_refractivity
-from gpri.network import Network
-from gpri.refractivity import (MetRecord, delta_n_from_met, dry_refractivity,
+from gpri_tools.atmosphere import PhaseScreen, delta_refractivity
+from gpri_tools.network import Network
+from gpri_tools.refractivity import (MetRecord, delta_n_from_met, dry_refractivity,
                                invert_refractivity, ramp_from_delta_n,
                                refractivity, refractivity_phase,
                                saturation_vapour_pressure, screens_to_delta_n,
@@ -67,7 +67,7 @@ def test_vapour_pressure_can_be_given_directly():
 
 # --------------------------------------------------------------- phase link
 def test_ramp_and_delta_refractivity_are_inverses():
-    """ramp_from_delta_n must undo gpri.atmosphere.delta_refractivity."""
+    """ramp_from_delta_n must undo gpri_tools.atmosphere.delta_refractivity."""
     dN = 2.5                                     # N-units
     ramp = ramp_from_delta_n(dN, LAMBDA)
     assert delta_refractivity(ramp, LAMBDA) * 1e6 == pytest.approx(dN)

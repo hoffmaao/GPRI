@@ -2,8 +2,8 @@
 import numpy as np
 import pytest
 
-from gpri.gamma import write_image
-from gpri.stack import DiffStack, find_pairs
+from gpri_tools.gamma import write_image
+from gpri_tools.stack import DiffStack, find_pairs
 
 PAR = """Gamma Interferometric SAR Processor (ISP) - Image Parameter File
 title: test
@@ -89,7 +89,7 @@ def test_network_pairs_are_the_daisy_chain(scene):
 
 
 def test_read_pair_matches_the_file(scene):
-    from gpri.gamma import read_image
+    from gpri_tools.gamma import read_image
     st = DiffStack.from_directory(scene / "diff0", slc_tab=scene / "SLCu_tab")
     direct = read_image(st.paths[0], shape=SHAPE, image_format="FCOMPLEX")
     assert np.allclose(st.read_pair(0), direct)
@@ -151,7 +151,7 @@ def test_repr_is_informative(scene):
 
 
 # ------------------------------------------------------------- SLC-formed pairs
-from gpri.stack import SlcPairStack, coherence_window                   # noqa: E402
+from gpri_tools.stack import SlcPairStack, coherence_window                   # noqa: E402
 
 BIG = (12, 40)
 BIG_PAR = PAR.replace("range_samples:    9", "range_samples:    40") \
@@ -190,7 +190,7 @@ def test_coherence_window_normalised():
 
 def test_slc_pairs_match_gamma_product(slc_scene):
     """Pair (i, j) is exactly s_i * conj(s_j) at one look - GAMMA's SLC_intf."""
-    from gpri.gamma import read_image
+    from gpri_tools.gamma import read_image
     st = SlcPairStack.from_tab(slc_scene / "SLCu_tab")
     assert st.n_pairs == 3 and st.n_epochs == 4 and st.shape == BIG
     assert list(map(tuple, st.network.pairs)) == [(0, 1), (1, 2), (2, 3)]
@@ -216,7 +216,7 @@ def test_slc_pairs_coherence_in_range_and_ordered(slc_scene):
     tri = SlcPairStack.from_directory(slc_scene / "slc", antenna="u", lags=(1, 2, 3))
     assert tri.n_pairs == 3 + 2 + 1
     assert list(map(tuple, tri.network.pairs))[:3] == [(0, 1), (0, 2), (0, 3)]
-    from gpri.timeseries import triplets
+    from gpri_tools.timeseries import triplets
     assert len(triplets(tri.network)) > 0
     with pytest.raises(ValueError):
         SlcPairStack.from_directory(slc_scene / "slc", lags=(0,))
@@ -245,7 +245,7 @@ def test_slc_pairs_multilook_geometry(slc_scene):
     one = SlcPairStack.from_tab(slc_scene / "SLCu_tab").read_pair(0)
     np.testing.assert_allclose(ifg[0, 0], one[:3, :4].mean(), rtol=1e-5)
     # one-look closure is identically zero; multilooking makes it non-zero
-    from gpri.timeseries import closure_phase, triplets
+    from gpri_tools.timeseries import closure_phase, triplets
     for looks, expect_zero in (((1, 1), True), ((3, 4), False)):
         s3 = SlcPairStack.from_tab(slc_scene / "SLCu_tab", lags=(1, 2), looks=looks)
         ph = np.stack([np.angle(s3.read_pair(p)) for p in range(s3.n_pairs)])
@@ -265,7 +265,7 @@ def test_slc_pairs_walk_patches(slc_scene):
 
 def test_cli_opens_slc_formed_stacks(slc_scene, capsys):
     """`gpri info` and its --antenna / --lags variants work without a diff0."""
-    from gpri.cli import build_parser, _open
+    from gpri_tools.cli import build_parser, _open
     p = build_parser()
     args = p.parse_args(["info", str(slc_scene), "--antenna", "lower"])
     st = _open(args)
@@ -290,7 +290,7 @@ def test_slc_pairs_crop_a_widened_sweep(slc_scene):
     the scans start at the same angle, so the longer images are cropped at
     the end and the stack is the leading block every epoch has.
     """
-    from gpri.gamma import read_image, write_image
+    from gpri_tools.gamma import read_image, write_image
     extra = 3
     long_id = IDS[2]
     path = slc_scene / "slc" / f"{long_id}.slc"
@@ -316,7 +316,7 @@ def test_slc_pairs_crop_a_widened_sweep(slc_scene):
 
 def test_slc_pairs_mean_intensity_is_a_backdrop(slc_scene):
     """Mean |s|^2 over a spread of epochs, for scenes GAMMA never multilooked."""
-    from gpri.gamma import read_image
+    from gpri_tools.gamma import read_image
     st = SlcPairStack.from_tab(slc_scene / "SLCu_tab")
     every = np.mean([np.abs(read_image(slc_scene / "slc" / f"{i}.slc", shape=BIG,
                                        image_format="FCOMPLEX")) ** 2 for i in IDS], axis=0)
