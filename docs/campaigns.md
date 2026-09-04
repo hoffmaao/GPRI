@@ -1,7 +1,9 @@
 # GPRI campaign inventory
 
-Surveyed 2026-08-30. Regenerate with `bin/survey_campaigns.py` (data roots
-come from `GPRI_SURVEY_ROOTS` in `site.env` — see `site.env.example`; nothing
+Surveyed 2026-08-30; two campaigns added 2026-09-02 from a backup of the
+field computer that is not under the survey roots (see "Two campaigns off a
+backup" below). Regenerate with `bin/survey_campaigns.py` (data roots come
+from `GPRI_SURVEY_ROOTS` in `site.env` — see `site.env.example`; nothing
 machine-specific lives in this repository).
 
 The question this answers: **which campaign should the diurnal analysis use?**
@@ -13,9 +15,15 @@ campaign spans and whether it is processed far enough to use.
 
 | campaign | copy | stage | acquisitions | span | cadence | cycles |
 |---|---|---|---:|---:|---:|---:|
+| `20190719` | backup | **raw** | 1140 | **45.7 h** | 2.0 min | **1.90** |
+| `20190719` | working | **slc** | 1137 | 45.7 h | 2.0 min | 1.90 |
 | `20170827` | archive | **raw** | 1335 | **44.9 h** | 2.0 min | **1.87** |
 | `20170827` | working | **slc** | 1335 | 44.9 h | 2.0 min | 1.87 |
+| `20180808` | backup | **raw** | 1229 | **41.4 h** | 2.0 min | **1.73** |
+| `20180808` | backup | slc | 1228 | 41.4 h | 2.0 min | 1.73 |
+| `20180808` | working | **slc** | 1227 | 41.4 h | 2.0 min | 1.73 |
 | `20170803` | archive | slc | 723 | 24.2 h | 2.0 min | 1.01 |
+| `20170803_full` | working | slc | 723 | 24.2 h | 2.0 min | 1.01 |
 | `20170803` | working (×3) | **diff** | 722 | 24.1 h | 2.0 min | 1.01 |
 | `20170713` | archive | raw | 271 | 23.9 h | 5.0 min | 0.996 |
 | `20170713_full` | working | slc | 271 | 23.9 h | 5.0 min | 0.996 |
@@ -25,6 +33,7 @@ campaign spans and whether it is processed far enough to use.
 | `20170913` | archive | raw | 437 | 14.5 h | 2.0 min | 0.61 |
 | `20170913` | working | slc | 437 | 14.5 h | 2.0 min | 0.61 |
 | `20160826` | archive | raw | 57 | 5.2 h | 5.0 min | 0.22 |
+| `20160826_full` | working | slc | 44 | 3.7 h | 5.0 min | 0.15 |
 | `20160826` | working (×2) | diff | 26+27 | 3.7 h | 5.0 min | 0.15 |
 
 25 campaign directories in total across the surveyed roots; the rest are lab,
@@ -114,6 +123,38 @@ triangles from GAMMA's own products — the closure data that needs nothing
 formed here (`examples/baker_closure.py`). With `SlcPairStack` the same
 script measures closure on `20170803` from thousands of triangles.
 
+## Two campaigns off a backup
+
+Two of the three campaigns that span more than one diurnal cycle were not on
+the analysis volumes at all. They are in a backup of the GPRI field computer
+made in July 2019 — a directory tree that had never been group-readable, and
+whose permissions had to be opened by its owner before anything could be read:
+
+- **`20180808`** — 1,229 acquisitions, 2018-08-09 00:03 to 08-10 17:25 UTC,
+  2-minute cadence, scan −55° → +30°. GAMMA had already focused it (1,228
+  SLC pairs to 12.5 km range, with `mli`, `diff0`–`diff3` and a
+  `processing_flow_ndh.sh`); it is refocused here across the full swath so
+  that it matches the rest. 226 of its raw files are gzipped, which
+  `gpri focus` now reads directly.
+- **`20190719`** — 1,140 acquisitions, 2019-07-19 17:47 to 07-21 15:28 UTC,
+  2-minute cadence, scan −45° → +40°, split across three day directories and
+  never processed at all. It was recorded while the backup was being made.
+  Three acquisitions do not focus: two have a zero-byte `.raw_par` and one
+  file is truncated.
+
+The same tree settles a negative worth recording: **there is no GPRI data
+from late August or September 2019**, though the field plan for that summer
+anticipated a second trip. Nothing later than 2019-07-21 exists in any copy.
+
+Two archive quirks turned up while focusing these and `20160826`, and
+`gpri.focus.find_raw` now handles both: the 2016 archive was written from a
+Mac and carries `._`-prefixed AppleDouble stubs beside the real files (a 4 KB
+"parameter file" with no `time_start`), and seven of its `.raw`/`.raw_par`
+pairs are zero bytes. The stubs are skipped — they carry the same timestamps
+as the files they shadow, so they change no count — and the empty files are
+reported as failures; with one further file truncated, the campaign keeps its
+other 44 acquisitions.
+
 ## Recommended order
 
 1. Use `20170803` now, with the caveats above.
@@ -126,7 +167,7 @@ script measures closure on `20170803` from thousands of triangles.
    (`bin/run_scene.sh 20170713_full`, half an hour). It is the quiet
    campaign: no per-pixel diurnal detection, no net line-of-sight rate over
    the coherent ice, and a night-time trough of a quarter the August depth
-   at the same hours (`examples/baker_seasons.py`, README "Three campaigns
+   at the same hours (`examples/baker_seasons.py`, README "Eight campaigns
    on one clock").
 4. `20170913` (14.5 h) and `20180709` (6.9 h) fall short of a cycle even
    fully processed. They are useful for rates, not for diurnal phase, and
@@ -144,10 +185,28 @@ script measures closure on `20170803` from thousands of triangles.
      regenerated before the chain runs. During its first 4.8 h the mount
      turned 5.1° (`gpri coregister`, README "Did the tripod hold?"); the
      recorded offsets put every epoch on the stable block's grid.
-5. `20160826`: 57 raw files, 26 of them truncated; 3.7 h processed by GAMMA
-   into both a single-reference and a chain network. Its value is the
-   closure triangles those two networks make, not anything sub-daily; the
-   raw adds nothing.
+5. `20180808` and `20190719`, the two campaigns off the backup: both are
+   two-cycle records and both go through the chain unchanged
+   (`bin/run_scene.sh 20180808`, `bin/run_scene.sh 20190719`). With
+   `20170827` they make three campaigns in three years that can be asked
+   whether the diurnal repeats (`examples/baker_composite.py`, README "Does
+   it repeat between years?").
+6. `20170803_full`: the August 2017 day refocused from its raw archive. The
+   GAMMA scene ships a `diff0`, and `bin/run_scene.sh` skips co-registration
+   and heading for such a scene, so only the refocused copy has an
+   azimuth-offset sidecar and a heading measured from eight SLCs. The two
+   agree on the day's rate to 0.3 m/yr.
+7. `20160826_full`: the oldest campaign that survives at all, refocused from
+   its raw archive. The directory holds 57 distinct acquisition timestamps —
+   what the survey tool counts, and what the table above reports — but only
+   52 of them have a `.raw` file at all; the other five
+   (`20160826_184803`, `20160826_213325`, `20160826_215518`,
+   `20160826_233239`, `20160827_000004`) left only a `.raw.log`. Of the 52,
+   seven are zero bytes and one is truncated, so 44 focus, giving 3.7 h at
+   5-minute cadence. GAMMA processed the same day into **both** a
+   single-reference and a chain network, and the closure triangles those two
+   make are still its main value: 3.7 h is far short of a cycle, so the
+   refocused scene carries rates and a noise floor, not diurnal phase.
 
 ## Scan headings
 
@@ -164,12 +223,22 @@ before any map is drawn:
 | `20170827` | 100.13 | 0.26 (0.05°) | two 0.02° steps the first night, then a 0.03° daytime swing on both days |
 | `20170913` | 108.38 | 0.10 (0.02°) | a 0.015° step at sunrise |
 | `20180709` | 122.80 | 25.6 (5.1°) | 1°/h anticlockwise for 4.8 h, then held |
+| `20170803_full` | 107.46 | 0.27 (0.05°) | steady; the refocused copy of the scene above |
+| `20180808` | 124.86 | 11.7 (2.33°) | 2.2° in the first six hours, then held to 0.02° for 35 h |
+| `20190719` | 109.70 | 22.4 (4.47°) | 4.4° in the first six hours, then held to 0.06° for 40 h |
+| `20160826_full` | 114.55 | 0.30 (0.03°) | steady over its 3.7 h |
+
+Three campaigns now show the same shape: a mount that settles by degrees
+over the first hours after set-up and then holds to hundredths of a degree
+for the rest of the record. On `20180709` that settling took 4.8 h of a 6.9 h
+campaign, which is why it mattered; on `20180808` and `20190719` it is over
+within the first six hours of a two-day record.
 
 The offsets are measured against the last SLC of the campaign
 (`gpri coregister --write` → `azimuth_offsets.json`, applied on read), so
 every campaign sits on the grid of its final acquisition. The sub-line
-2017 drifts are thermal — they keep the sun's hours — and are applied all
-the same; only 2018's needed to be.
+drifts of the 2017 campaigns are thermal — they keep the sun's hours — and
+are applied all the same; only the 2018 and 2019 mounts needed them.
 
 ## Practical notes
 
